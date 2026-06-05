@@ -226,6 +226,7 @@ let dragStartX = 0, dragStartY = 0;
 let dragCurrentX = 0, dragCurrentY = 0;
 let openTimer = null;
 let closeRafId = null;
+let savedTarget = null; // เซฟตำแหน่งไอคอนตอนเปิด → ใช้ตอนปิด
 
 // Velocity
 let lastMoveX = 0, lastMoveY = 0, lastMoveTime = 0;
@@ -306,6 +307,7 @@ function openApp(iconEl, url) {
   const H = window.innerHeight;
   const iconRect = iconEl.getBoundingClientRect();
   const iconTf = getIconTransform(iconRect);
+  savedTarget = iconTf; // เซฟไว้ใช้ตอนปิด
 
   if (lastIconEl && lastIconEl !== iconEl) {
     moveIconToDock(lastIconEl);
@@ -388,10 +390,12 @@ function closeApp() {
 
   const W = window.innerWidth;
   const H = window.innerHeight;
-  const iconRect = dockPlaceholder && dockPlaceholder.parentElement
-    ? dockPlaceholder.getBoundingClientRect()
-    : lastIconEl.getBoundingClientRect();
-  const target = getIconTransform(iconRect);
+  const target = savedTarget || (() => {
+    const r = dockPlaceholder && dockPlaceholder.parentElement
+      ? dockPlaceholder.getBoundingClientRect()
+      : lastIconEl.getBoundingClientRect();
+    return getIconTransform(r);
+  })();
 
   const startTx = dragCurrentX;
   const startTy = dragCurrentY;
