@@ -184,7 +184,9 @@ img.wallpaper {
 // ─── App State ───
 let appState = 'closed'; // closed | opening | open | dragging | closing
 let lastIconEl = null;
+let dragStartX = 0;
 let dragStartY = 0;
+let dragCurrentX = 0;
 let dragCurrentY = 0;
 
 const boxWeb = document.getElementById('boxWeb');
@@ -193,7 +195,7 @@ const gestureBar = document.getElementById('gestureBar');
 const dockWrap = document.getElementById('dockWrap');
 const bgOverlay = document.getElementById('bgOverlay');
 
-const CLOSE_THRESHOLD = 0.18; // 18% screen height to trigger close
+const CLOSE_UP_PX = 50; // swipe up > 50px = close
 
 // ─── Open App ───
 function openApp(iconEl, url) {
@@ -253,15 +255,16 @@ function closeApp() {
   const rect = lastIconEl.getBoundingClientRect();
   const W = window.innerWidth;
   const H = window.innerHeight;
-  const progress = Math.min(dragCurrentY / H, 1);
-  const scale = 1 - progress * 0.08;
+  const dist = Math.sqrt(dragCurrentX * dragCurrentX + dragCurrentY * dragCurrentY);
+  const progress = Math.min(dist / Math.max(W, H), 1);
+  const scale = 1 - progress * 0.15;
 
   // Compute visual rect from current drag state
-  const vLeft = W * (1 - scale) / 2;
-  const vTop = dragCurrentY + H * (1 - scale) / 2;
+  const vLeft = (W - W * scale) / 2 + dragCurrentX;
+  const vTop = (H - H * scale) / 2 + dragCurrentY;
   const vWidth = W * scale;
   const vHeight = H * scale;
-  const vRadius = progress * 25;
+  const vRadius = progress * 30;
 
   // Set visual position as actual, remove transform
   boxWeb.style.transition = 'none';
@@ -293,6 +296,7 @@ function closeApp() {
     boxWeb.style.opacity = '1';
     boxWeb.style.transform = 'none';
     appFrame.src = '';
+    dragCurrentX = 0;
     dragCurrentY = 0;
     appState = 'closed';
     enterKiosk();
@@ -305,7 +309,9 @@ gestureBar.addEventListener('touchstart', (e) => {
   e.preventDefault();
   e.stopPropagation();
 
+  dragStartX = e.touches[0].clientX;
   dragStartY = e.touches[0].clientY;
+  dragCurrentX = 0;
   dragCurrentY = 0;
   appState = 'dragging';
 
@@ -317,35 +323,37 @@ gestureBar.addEventListener('touchmove', (e) => {
   e.preventDefault();
   e.stopPropagation();
 
-  const deltaY = e.touches[0].clientY - dragStartY;
-  dragCurrentY = Math.max(0, deltaY);
+  dragCurrentX = e.touches[0].clientX - dragStartX;
+  dragCurrentY = e.touches[0].clientY - dragStartY;
 
-  const progress = Math.min(dragCurrentY / window.innerHeight, 1);
-  const scale = 1 - progress * 0.08;
+  const dist = Math.sqrt(dragCurrentX * dragCurrentX + dragCurrentY * dragCurrentY);
+  const maxDim = Math.max(window.innerWidth, window.innerHeight);
+  const progress = Math.min(dist / maxDim, 1);
+  const scale = 1 - progress * 0.15;
 
-  // Box follows finger — translateY + slight scale
-  boxWeb.style.transform = `translateY(${dragCurrentY}px) scale(${scale})`;
-  boxWeb.style.borderRadius = (progress * 25) + 'px';
+  // Box follows finger freely — translateX + translateY + scale
+  boxWeb.style.transform = `translate(${dragCurrentX}px, ${dragCurrentY}px) scale(${scale})`;
+  boxWeb.style.borderRadius = (progress * 30) + 'px';
 
-  // Fade overlay with drag progress
-  bgOverlay.style.opacity = Math.max(0, 1 - progress * 1.5);
+  // Fade overlay with distance
+  bgOverlay.style.opacity = Math.max(0, 1 - progress * 2);
 }, { passive: false });
 
 gestureBar.addEventListener('touchend', () => {
   if (appState !== 'dragging') return;
 
-  const progress = dragCurrentY / window.innerHeight;
-
-  if (progress > CLOSE_THRESHOLD) {
+  // Swipe UP (negative Y) more than 50px = close
+  if (dragCurrentY < -CLOSE_UP_PX) {
     closeApp();
   } else {
     // Snap back to open
     appState = 'open';
     boxWeb.style.transition = 'all 0.35s cubic-bezier(0.2, 0, 0, 1)';
-    boxWeb.style.transform = 'translateY(0) scale(1)';
+    boxWeb.style.transform = 'translate(0, 0) scale(1)';
     boxWeb.style.borderRadius = '0px';
     bgOverlay.style.opacity = '';
     bgOverlay.classList.add('active');
+    dragCurrentX = 0;
     dragCurrentY = 0;
   }
 });
@@ -356,7 +364,9 @@ gestureBar.addEventListener('mousedown', (e) => {
   e.preventDefault();
   e.stopPropagation();
 
+  dragStartX = e.clientX;
   dragStartY = e.clientY;
+  dragCurrentX = 0;
   dragCurrentY = 0;
   appState = 'dragging';
 
@@ -366,31 +376,33 @@ gestureBar.addEventListener('mousedown', (e) => {
 document.addEventListener('mousemove', (e) => {
   if (appState !== 'dragging') return;
 
-  const deltaY = e.clientY - dragStartY;
-  dragCurrentY = Math.max(0, deltaY);
+  dragCurrentX = e.clientX - dragStartX;
+  dragCurrentY = e.clientY - dragStartY;
 
-  const progress = Math.min(dragCurrentY / window.innerHeight, 1);
-  const scale = 1 - progress * 0.08;
+  const dist = Math.sqrt(dragCurrentX * dragCurrentX + dragCurrentY * dragCurrentY);
+  const maxDim = Math.max(window.innerWidth, window.innerHeight);
+  const progress = Math.min(dist / maxDim, 1);
+  const scale = 1 - progress * 0.15;
 
-  boxWeb.style.transform = `translateY(${dragCurrentY}px) scale(${scale})`;
-  boxWeb.style.borderRadius = (progress * 25) + 'px';
-  bgOverlay.style.opacity = Math.max(0, 1 - progress * 1.5);
+  boxWeb.style.transform = `translate(${dragCurrentX}px, ${dragCurrentY}px) scale(${scale})`;
+  boxWeb.style.borderRadius = (progress * 30) + 'px';
+  bgOverlay.style.opacity = Math.max(0, 1 - progress * 2);
 });
 
 document.addEventListener('mouseup', () => {
   if (appState !== 'dragging') return;
 
-  const progress = dragCurrentY / window.innerHeight;
-
-  if (progress > CLOSE_THRESHOLD) {
+  // Swipe UP (negative Y) more than 50px = close
+  if (dragCurrentY < -CLOSE_UP_PX) {
     closeApp();
   } else {
     appState = 'open';
     boxWeb.style.transition = 'all 0.35s cubic-bezier(0.2, 0, 0, 1)';
-    boxWeb.style.transform = 'translateY(0) scale(1)';
+    boxWeb.style.transform = 'translate(0, 0) scale(1)';
     boxWeb.style.borderRadius = '0px';
     bgOverlay.style.opacity = '';
     bgOverlay.classList.add('active');
+    dragCurrentX = 0;
     dragCurrentY = 0;
   }
 });
