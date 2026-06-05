@@ -416,14 +416,14 @@ function closeApp() {
   const dy = ty - cy;
   const distToTarget = Math.sqrt(dx * dx + dy * dy);
 
-  // ── Swipe speed → initial velocity toward icon (แรงเวี่ยง) ──
-  // ปัดเร็ว = momentum มาก = เวี่ยงเยอะ + เด้งสลับ
+  // ── Swipe speed → initial velocity in SWIPE direction (แรงเวี่ยง) ──
+  // ปัดขึ้นเร็ว = momentum ขึ้นบน → กล่องบินขึ้น → สปริงดึงกลับลงไอคอน → เด้งสลับ
   const swipeSpeed = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
   let vx = 0, vy = 0;
-  if (distToTarget > 1 && swipeSpeed > 0.15) {
-    const momentum = swipeSpeed * 2000;
-    vx = (dx / distToTarget) * momentum;
-    vy = (dy / distToTarget) * momentum;
+  if (swipeSpeed > 0.15) {
+    const momentum = swipeSpeed * 2800;
+    vx = velocityX * momentum / swipeSpeed;  // swipe direction X
+    vy = velocityY * momentum / swipeSpeed;  // swipe direction Y
   }
 
   // Spring config: underdamped = มีเวี่ยง + เด้งสลับ
