@@ -376,7 +376,7 @@ function openApp(iconEl, url) {
   if (document.pointerLockElement) document.exitPointerLock();
 }
 
-// ─── Close App (Spring Physics — เวี่ยงบน + เด้งสลับ) ───
+// ─── Close App (2-Spring: progress + เวี่ยง offset) ───
 function closeApp() {
   if (appState !== 'dragging' && appState !== 'open') return;
   appState = 'closing';
@@ -389,38 +389,41 @@ function closeApp() {
   const iconRect = lastIconEl.getBoundingClientRect();
   const target = getIconTransform(iconRect);
 
-  // Current state from drag
+  // ── Start position (from drag) ──
+  const startTx = dragCurrentX;
+  const startTy = dragCurrentY;
   const dragDist = Math.sqrt(dragCurrentX * dragCurrentX + dragCurrentY * dragCurrentY);
   const maxDim = Math.max(W, H);
   const dragProgress = Math.min(dragDist / maxDim, 1);
-  const dragScale = 1 - dragProgress * 0.15;
+  const startS = 1 - dragProgress * 0.15;
 
-  // Spring state: tx, ty, s
-  let curTx = dragCurrentX;
-  let curTy = dragCurrentY;
-  let curS  = dragScale;
-
-  // Target
+  // ── Target position ──
   const tTx = target.tx;
   const tTy = target.ty;
   const tS  = target.s;
 
-  // Velocity: continue drag momentum + เวี่ยงบน
-  let velTx = 0;
-  let velTy = 0;
-  let velS  = 0;
+  // ══════════════════════════════════════════
+  // 2 ตัวแปร spring แยกกัน:
+  //   p   = progress 0→1 (ไอคอน)   [overdamped = ลื่น]
+  //   oY  = Y offset เวี่ยงบน       [underdamped = เด้งสลับ]
+  // ══════════════════════════════════════════
 
+  let p = 0;        // progress toward icon
+  let pVel = 0.8;   // start moving toward icon
+
+  let oY = 0;       // vertical offset (negative = up)
   const swipeSpeed = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
-  if (swipeSpeed > 0.15) {
-    const momentum = swipeSpeed * 2800;
-    velTy = -Math.abs(momentum); // ขึ้นบนเท่านั้น
-  }
+  // ปัดเร็ว = เวี่ยงเยอะ, ปัดช้า = เวี่ยงนิด แต่เวี่ยงเสมอ
+  const flingHeight = (Math.max(swipeSpeed, 0.05) * 0.6 + 0.08) * H;
+  let oYVel = -3.5; // initial upward velocity (in oY units: pixels)
 
-  // Spring: position underdamped (เด้งสลับ), scale overdamped (ลื่น)
-  const posStiff = 200;
-  const posDamp  = 7;
-  const sStiff   = 350;
-  const sDamp    = 22;
+  // p spring: overdamped (smooth to target)
+  const pStiff = 18;
+  const pDamp  = 9;
+
+  // oY spring: critically damped (ลื่น ไม่เด้งสลับ)
+  const oStiff = 30;
+  const oDamp  = 14;
 
   // UI
   boxAnim.classList.add('passthrough');
@@ -431,7 +434,7 @@ function closeApp() {
   bgOverlay.style.opacity = '';
 
   let totalMs = 0;
-  const maxMs = 1200;
+  const maxMs = 1500;
   let lastTs = null;
   let settled = false;
   let iconShown = false;
@@ -444,57 +447,61 @@ function closeApp() {
 
     if (totalMs > maxMs) { finishClose(); return; }
 
-    // Spring sub-steps
+    // ── Spring sub-steps ──
     const steps = Math.max(1, Math.round(frameMs / 4));
     const dt = (frameMs / 1000) / steps;
     for (let i = 0; i < steps; i++) {
-      // Position spring (underdamped = เด้งสลับ)
-      const fx = -posStiff * (curTx - tTx) - posDamp * velTx;
-      const fy = -posStiff * (curTy - tTy) - posDamp * velTy;
-      velTx += fx * dt;
-      velTy += fy * dt;
-      curTx += velTx * dt;
-      curTy += velTy * dt;
+      // Progress spring (overdamped → smooth to p=1)
+      const fp = -pStiff * (p - 1) - pDamp * pVel;
+      pVel += fp * dt;
+      p += pVel * dt;
 
-      // Scale spring (overdamped = ลื่น ไม่เด้ง)
-      const fs = -sStiff * (curS - tS) - sDamp * velS;
-      velS += fs * dt;
-      curS += velS * dt;
+      // Offset Y spring (underdamped → เด้งสลับรอบ oY=0)
+      const fo = -oStiff * oY - oDamp * oYVel;
+      oYVel += fo * dt;
+      oY += oYVel * dt;
     }
 
-    // Clamp scale
-    curS = Math.max(tS * 0.5, Math.min(1.1, curS));
+    // Clamp progress
+    p = Math.max(0, Math.min(1.02, p));
 
-    // Border-radius (compensate for scale)
-    const sizeProgress = Math.max(0, Math.min(1, (1 - curS) / (1 - tS)));
-    const cssR = calcRadius(sizeProgress, curS);
+    // ── Compute actual position ──
+    const curTx = startTx + (tTx - startTx) * p;
+    const curTy = startTy + (tTy - startTy) * p + oY * flingHeight;
+    const curS  = startS  + (tS  - startS)  * p;
+
+    // Clamp scale
+    const clampS = Math.max(tS * 0.5, Math.min(1.1, curS));
+
+    // Border-radius
+    const sizeProgress = Math.max(0, Math.min(1, (1 - clampS) / (1 - tS)));
+    const cssR = calcRadius(sizeProgress, clampS);
 
     // Show icon overlay when box is small
-    if (!iconShown && curS < 0.25) {
+    if (!iconShown && clampS < 0.3) {
       iconShown = true;
       animIcon.classList.add('visible');
       boxWeb.style.background = 'transparent';
     }
 
     // Apply
-    boxAnim.style.transform = `translate(${curTx}px, ${curTy}px) scale(${curS})`;
+    boxAnim.style.transform = `translate(${curTx}px, ${curTy}px) scale(${clampS})`;
     boxWeb.style.borderRadius = cssR + 'px';
 
-    // Settled?
-    const txD = Math.abs(curTx - tTx);
-    const tyD = Math.abs(curTy - tTy);
-    const sD  = Math.abs(curS - tS);
-    const vel = Math.sqrt(velTx * velTx + velTy * velTy);
+    // ── Settled? ──
+    const pDist = Math.abs(p - 1);
+    const oYAbs = Math.abs(oY);
+    const oYVelAbs = Math.abs(oYVel);
 
-    if (!settled && txD < 1 && tyD < 1 && sD < 0.003 && vel < 5) {
+    if (!settled && pDist < 0.003 && oYAbs < 0.01 && oYVelAbs < 0.1) {
       settled = true;
-      // Gentle finish: smooth snap + fade
-      boxAnim.style.transition = `transform 300ms cubic-bezier(0.25, 0, 0.15, 1)`;
+      // Gentle finish: snap + fade
+      boxAnim.style.transition = `transform 250ms cubic-bezier(0.25, 0, 0.15, 1)`;
       boxAnim.style.transform = `translate(${tTx}px, ${tTy}px) scale(${tS})`;
-      boxWeb.style.transition = `border-radius 300ms cubic-bezier(0.25, 0, 0.15, 1), opacity 300ms ease`;
+      boxWeb.style.transition = `border-radius 250ms cubic-bezier(0.25, 0, 0.15, 1), opacity 250ms ease`;
       boxWeb.style.borderRadius = calcRadius(1, tS) + 'px';
       boxWeb.style.opacity = '0';
-      setTimeout(finishClose, 310);
+      setTimeout(finishClose, 260);
       return;
     }
 
