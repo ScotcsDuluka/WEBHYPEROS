@@ -17,6 +17,8 @@ html, body {
   overscroll-behavior: none;
   font-family: -apple-system, "SF Pro Display", "Noto Sans SC", system-ui, sans-serif;
 }
+
+/* ─── Wallpaper ─── */
 img.wallpaper {
   position: fixed;
   top: 0; left: 0;
@@ -28,6 +30,19 @@ img.wallpaper {
   pointer-events: none;
 }
 
+/* ─── Background Overlay (dim when app open) ─── */
+.bg-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.35);
+  z-index: 15;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+.bg-overlay.active { opacity: 1; }
+
 /* ─── Dock ─── */
 .dock-wrap {
   position: fixed;
@@ -35,6 +50,12 @@ img.wallpaper {
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+.dock-wrap.hidden {
+  opacity: 0;
+  transform: translateX(-50%) translateY(30px);
+  pointer-events: none;
 }
 .dock {
   display: flex;
@@ -68,11 +89,7 @@ img.wallpaper {
   position: relative;
   overflow: hidden;
 }
-.app-icon:active {
-  transform: scale(0.99);
-  
-}
-/* Glass highlight */
+.app-icon:active { transform: scale(0.88); }
 .app-icon::after {
   content: '';
   position: absolute;
@@ -82,9 +99,51 @@ img.wallpaper {
   border-radius: 13px 13px 0 0;
   pointer-events: none;
 }
-.app-icon svg {
-  position: relative;
-  z-index: 1;
+.app-icon svg { position: relative; z-index: 1; }
+
+/* ─── Box WEB ─── */
+.box-web {
+  position: fixed;
+  z-index: 20;
+  display: none;
+  background: #fff;
+  overflow: hidden;
+  will-change: transform, left, top, width, height, border-radius;
+}
+.box-web iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+
+/* ─── Gesture Bar ─── */
+.gesture-bar {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 160px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 30;
+  touch-action: none;
+  cursor: grab;
+}
+.gesture-bar:active { cursor: grabbing; }
+.gesture-pill {
+  width: 134px;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(0,0,0,0.2);
+  transition: background 0.15s ease, width 0.15s ease;
+  pointer-events: none;
+}
+.gesture-bar:active .gesture-pill {
+  background: rgba(0,0,0,0.4);
+  width: 110px;
 }
 </style>
 </head>
@@ -92,8 +151,19 @@ img.wallpaper {
 
 <img class="wallpaper" src="https://mir-s3-cdn-cf.behance.net/project_modules/1400_webp/4b5d40216256937.67b492e0e7551.jpg" alt="">
 
+<!-- Background Overlay -->
+<div class="bg-overlay" id="bgOverlay"></div>
+
+<!-- Box WEB -->
+<div class="box-web" id="boxWeb">
+  <iframe id="appFrame" src="" allow="autoplay; fullscreen"></iframe>
+  <div class="gesture-bar" id="gestureBar">
+    <div class="gesture-pill"></div>
+  </div>
+</div>
+
 <!-- Dock -->
-<div class="dock-wrap">
+<div class="dock-wrap" id="dockWrap">
   <div class="dock">
     <!-- Settings -->
     <div class="app-icon" style="background: linear-gradient(145deg, #CFD8DC, #546E7A);" id="btnSettings">
@@ -111,41 +181,299 @@ img.wallpaper {
 </div>
 
 <script>
-// Dock button actions
-document.getElementById('btnYouTube').addEventListener('click', () => {
-  window.open('https://www.youtube.com', '_blank');
+// ─── App State ───
+let appState = 'closed'; // closed | opening | open | dragging | closing
+let lastIconEl = null;
+let dragStartY = 0;
+let dragCurrentY = 0;
+
+const boxWeb = document.getElementById('boxWeb');
+const appFrame = document.getElementById('appFrame');
+const gestureBar = document.getElementById('gestureBar');
+const dockWrap = document.getElementById('dockWrap');
+const bgOverlay = document.getElementById('bgOverlay');
+
+const CLOSE_THRESHOLD = 0.18; // 18% screen height to trigger close
+
+// ─── Open App ───
+function openApp(iconEl, url) {
+  if (appState !== 'closed') return;
+  appState = 'opening';
+  lastIconEl = iconEl;
+
+  const rect = iconEl.getBoundingClientRect();
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+
+  // Start from icon position
+  boxWeb.style.transition = 'none';
+  boxWeb.style.transform = 'none';
+  boxWeb.style.display = 'block';
+  boxWeb.style.left = rect.left + 'px';
+  boxWeb.style.top = rect.top + 'px';
+  boxWeb.style.width = rect.width + 'px';
+  boxWeb.style.height = rect.height + 'px';
+  boxWeb.style.borderRadius = '15px';
+  boxWeb.style.opacity = '1';
+
+  appFrame.src = '';
+
+  // Force reflow
+  void boxWeb.offsetHeight;
+
+  // Hide dock
+  dockWrap.classList.add('hidden');
+
+  // Show overlay
+  bgOverlay.classList.add('active');
+
+  // Animate to fullscreen
+  boxWeb.style.transition = 'all 0.45s cubic-bezier(0.2, 0, 0, 1)';
+  boxWeb.style.left = '0px';
+  boxWeb.style.top = '0px';
+  boxWeb.style.width = W + 'px';
+  boxWeb.style.height = H + 'px';
+  boxWeb.style.borderRadius = '0px';
+
+  // Load iframe after animation
+  setTimeout(() => {
+    appFrame.src = url;
+    appState = 'open';
+  }, 450);
+
+  // Exit pointer lock for app interaction
+  if (document.pointerLockElement) document.exitPointerLock();
+}
+
+// ─── Close App ───
+function closeApp() {
+  if (appState !== 'dragging') return;
+  appState = 'closing';
+
+  const rect = lastIconEl.getBoundingClientRect();
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  const progress = Math.min(dragCurrentY / H, 1);
+  const scale = 1 - progress * 0.08;
+
+  // Compute visual rect from current drag state
+  const vLeft = W * (1 - scale) / 2;
+  const vTop = dragCurrentY + H * (1 - scale) / 2;
+  const vWidth = W * scale;
+  const vHeight = H * scale;
+  const vRadius = progress * 25;
+
+  // Set visual position as actual, remove transform
+  boxWeb.style.transition = 'none';
+  boxWeb.style.transform = 'none';
+  boxWeb.style.left = vLeft + 'px';
+  boxWeb.style.top = vTop + 'px';
+  boxWeb.style.width = vWidth + 'px';
+  boxWeb.style.height = vHeight + 'px';
+  boxWeb.style.borderRadius = vRadius + 'px';
+
+  void boxWeb.offsetHeight;
+
+  // Show dock, fade overlay
+  dockWrap.classList.remove('hidden');
+  bgOverlay.classList.remove('active');
+  bgOverlay.style.opacity = '';
+
+  // Animate to icon position
+  boxWeb.style.transition = 'all 0.38s cubic-bezier(0.3, 0, 0, 1)';
+  boxWeb.style.left = rect.left + 'px';
+  boxWeb.style.top = rect.top + 'px';
+  boxWeb.style.width = rect.width + 'px';
+  boxWeb.style.height = rect.height + 'px';
+  boxWeb.style.borderRadius = '15px';
+  boxWeb.style.opacity = '0.4';
+
+  setTimeout(() => {
+    boxWeb.style.display = 'none';
+    boxWeb.style.opacity = '1';
+    boxWeb.style.transform = 'none';
+    appFrame.src = '';
+    dragCurrentY = 0;
+    appState = 'closed';
+    enterKiosk();
+  }, 380);
+}
+
+// ─── Gesture Bar: Touch Events ───
+gestureBar.addEventListener('touchstart', (e) => {
+  if (appState !== 'open') return;
+  e.preventDefault();
+  e.stopPropagation();
+
+  dragStartY = e.touches[0].clientY;
+  dragCurrentY = 0;
+  appState = 'dragging';
+
+  boxWeb.style.transition = 'none';
+}, { passive: false });
+
+gestureBar.addEventListener('touchmove', (e) => {
+  if (appState !== 'dragging') return;
+  e.preventDefault();
+  e.stopPropagation();
+
+  const deltaY = e.touches[0].clientY - dragStartY;
+  dragCurrentY = Math.max(0, deltaY);
+
+  const progress = Math.min(dragCurrentY / window.innerHeight, 1);
+  const scale = 1 - progress * 0.08;
+
+  // Box follows finger — translateY + slight scale
+  boxWeb.style.transform = `translateY(${dragCurrentY}px) scale(${scale})`;
+  boxWeb.style.borderRadius = (progress * 25) + 'px';
+
+  // Fade overlay with drag progress
+  bgOverlay.style.opacity = Math.max(0, 1 - progress * 1.5);
+}, { passive: false });
+
+gestureBar.addEventListener('touchend', () => {
+  if (appState !== 'dragging') return;
+
+  const progress = dragCurrentY / window.innerHeight;
+
+  if (progress > CLOSE_THRESHOLD) {
+    closeApp();
+  } else {
+    // Snap back to open
+    appState = 'open';
+    boxWeb.style.transition = 'all 0.35s cubic-bezier(0.2, 0, 0, 1)';
+    boxWeb.style.transform = 'translateY(0) scale(1)';
+    boxWeb.style.borderRadius = '0px';
+    bgOverlay.style.opacity = '';
+    bgOverlay.classList.add('active');
+    dragCurrentY = 0;
+  }
 });
 
-// Block
+// ─── Gesture Bar: Mouse Events (desktop test) ───
+gestureBar.addEventListener('mousedown', (e) => {
+  if (appState !== 'open') return;
+  e.preventDefault();
+  e.stopPropagation();
+
+  dragStartY = e.clientY;
+  dragCurrentY = 0;
+  appState = 'dragging';
+
+  boxWeb.style.transition = 'none';
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (appState !== 'dragging') return;
+
+  const deltaY = e.clientY - dragStartY;
+  dragCurrentY = Math.max(0, deltaY);
+
+  const progress = Math.min(dragCurrentY / window.innerHeight, 1);
+  const scale = 1 - progress * 0.08;
+
+  boxWeb.style.transform = `translateY(${dragCurrentY}px) scale(${scale})`;
+  boxWeb.style.borderRadius = (progress * 25) + 'px';
+  bgOverlay.style.opacity = Math.max(0, 1 - progress * 1.5);
+});
+
+document.addEventListener('mouseup', () => {
+  if (appState !== 'dragging') return;
+
+  const progress = dragCurrentY / window.innerHeight;
+
+  if (progress > CLOSE_THRESHOLD) {
+    closeApp();
+  } else {
+    appState = 'open';
+    boxWeb.style.transition = 'all 0.35s cubic-bezier(0.2, 0, 0, 1)';
+    boxWeb.style.transform = 'translateY(0) scale(1)';
+    boxWeb.style.borderRadius = '0px';
+    bgOverlay.style.opacity = '';
+    bgOverlay.classList.add('active');
+    dragCurrentY = 0;
+  }
+});
+
+// ─── Icon Click Handlers ───
+document.getElementById('btnSettings').addEventListener('click', () => {
+  openApp(document.getElementById('btnSettings'), 'settings.html');
+});
+
+document.getElementById('btnYouTube').addEventListener('click', () => {
+  openApp(document.getElementById('btnYouTube'), 'youtube.html');
+});
+
+// ─── Block ───
 document.addEventListener('contextmenu', e => e.preventDefault());
 document.addEventListener('dblclick', e => e.preventDefault());
 document.addEventListener('dragstart', e => e.preventDefault());
 document.addEventListener('selectstart', e => e.preventDefault());
 
-// Kiosk (no pointer lock — mouse free for testing)
+// ─── Kiosk Mode (Fullscreen + Keyboard Lock + Pointer Lock) ───
 let escPressed = false;
+let pointerLocked = false;
+
 async function enterKiosk() {
   if (escPressed) return;
   const el = document.documentElement;
+
   if (!document.fullscreenElement) {
     try { await el.requestFullscreen(); } catch(e) {}
   }
+
   if (navigator.keyboard && navigator.keyboard.lock) {
-    try { await navigator.keyboard.lock(['Escape','AltLeft','AltRight','Tab','MetaLeft','MetaRight','F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12','ControlLeft','ControlRight']); } catch(e) {}
+    try {
+      await navigator.keyboard.lock([
+        'Escape','AltLeft','AltRight','Tab','MetaLeft','MetaRight',
+        'F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12',
+        'ControlLeft','ControlRight','ShiftLeft','ShiftRight'
+      ]);
+    } catch(e) {}
   }
+
+  try { await el.requestPointerLock(); } catch(e) {}
 }
+
+// Enter kiosk on first click/tap
 document.addEventListener('click', enterKiosk, { once: true });
 document.addEventListener('touchend', enterKiosk, { once: true });
+
+// Re-enter fullscreen if exited (not by ESC)
 document.addEventListener('fullscreenchange', () => {
   if (!document.fullscreenElement && !escPressed) setTimeout(enterKiosk, 200);
   if (document.fullscreenElement) escPressed = false;
 });
+
+// Re-lock pointer only when app is closed
+document.addEventListener('pointerlockchange', () => {
+  pointerLocked = !!document.pointerLockElement;
+  if (!document.pointerLockElement && !escPressed && document.fullscreenElement && appState === 'closed') {
+    setTimeout(() => {
+      document.documentElement.requestPointerLock().catch(() => {});
+    }, 200);
+  }
+});
+
+// ESC = only way out
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { escPressed = true; if (document.fullscreenElement) document.exitFullscreen(); return; }
+  if (e.key === 'Escape') {
+    escPressed = true;
+    if (document.pointerLockElement) document.exitPointerLock();
+    if (document.fullscreenElement) document.exitFullscreen();
+    return;
+  }
   e.preventDefault();
 });
-history.pushState(null,'',location.href); history.pushState(null,'',location.href); history.pushState(null,'',location.href);
-window.addEventListener('popstate', () => { history.pushState(null,'',location.href); enterKiosk(); });
+
+// Block back navigation
+history.pushState(null,'',location.href);
+history.pushState(null,'',location.href);
+history.pushState(null,'',location.href);
+window.addEventListener('popstate', () => {
+  history.pushState(null,'',location.href);
+  enterKiosk();
+});
 </script>
 
 </body>
