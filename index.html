@@ -39,18 +39,18 @@ img.wallpaper {
   z-index: 15;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.4s ease;
+  transition: opacity 0.5s ease;
 }
 .bg-overlay.active { opacity: 1; }
 
 /* ─── Dock ─── */
 .dock-wrap {
   position: fixed;
-  bottom: 65px;
+  bottom: 58px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
-  transition: opacity 0.35s ease, transform 0.35s ease;
+  transition: opacity 0.45s ease, transform 0.45s ease;
 }
 .dock-wrap.hidden {
   opacity: 0;
@@ -123,18 +123,18 @@ img.wallpaper {
   pointer-events: none;
 }
 
-/* ─── Gesture Bar (shared) ─── */
+/* ─── Single Topmost Gesture Bar ─── */
 .gesture-bar {
-  position: absolute;
-  bottom: 6px;
+  position: fixed;
+  bottom: 8px;
   left: 50%;
   transform: translateX(-50%);
   width: 160px;
-  height: 30px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 30;
+  z-index: 50;
   touch-action: none;
   cursor: grab;
 }
@@ -143,53 +143,19 @@ img.wallpaper {
   width: 134px;
   height: 5px;
   border-radius: 3px;
-  transition: background 0.15s ease, width 0.15s ease;
-  pointer-events: none;
-}
-.gesture-bar:active .gesture-pill {
-  width: 110px;
-}
-
-/* ─── Home Gesture Bar ─── */
-.home-gesture {
-  position: fixed;
-  bottom: 14px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 160px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 12;
-  touch-action: none;
-  cursor: grab;
-  transition: opacity 0.35s ease, transform 0.35s ease;
-}
-.home-gesture.hidden {
-  opacity: 0;
-  transform: translateX(-50%) translateY(20px);
-  pointer-events: none;
-}
-.home-gesture:active { cursor: grabbing; }
-.home-pill {
-  width: 134px;
-  height: 5px;
-  border-radius: 3px;
   background: rgba(255,255,255,0.35);
-  transition: background 0.15s ease, width 0.15s ease;
+  transition: background 0.4s ease, width 0.15s ease;
   pointer-events: none;
 }
-.home-gesture:active .home-pill {
-  background: rgba(255,255,255,0.6);
+.gesture-bar:active .gesture-pill {
   width: 110px;
 }
-/* Pill inside box-web (dark bg) */
-.gesture-pill {
-  background: rgba(0,0,0,0.2);
+/* Dark pill when app is open (on white bg) */
+.gesture-bar.on-app .gesture-pill {
+  background: rgba(0,0,0,0.18);
 }
-.gesture-bar:active .gesture-pill {
-  background: rgba(0,0,0,0.4);
+.gesture-bar.on-app:active .gesture-pill {
+  background: rgba(0,0,0,0.35);
 }
 </style>
 </head>
@@ -203,14 +169,11 @@ img.wallpaper {
 <!-- Box WEB -->
 <div class="box-web" id="boxWeb">
   <iframe id="appFrame" src="" allow="autoplay; fullscreen"></iframe>
-  <div class="gesture-bar" id="gestureBar">
-    <div class="gesture-pill"></div>
-  </div>
 </div>
 
-<!-- Home Gesture Bar -->
-<div class="home-gesture" id="homeGesture">
-  <div class="home-pill"></div>
+<!-- Single Topmost Gesture Bar -->
+<div class="gesture-bar" id="gestureBar">
+  <div class="gesture-pill"></div>
 </div>
 
 <!-- Dock -->
@@ -250,24 +213,31 @@ let velocityX = 0, velocityY = 0;
 const boxWeb = document.getElementById('boxWeb');
 const appFrame = document.getElementById('appFrame');
 const gestureBar = document.getElementById('gestureBar');
-const homeGesture = document.getElementById('homeGesture');
 const dockWrap = document.getElementById('dockWrap');
 const bgOverlay = document.getElementById('bgOverlay');
 
 // ─── Animation Tuning ───
 const CLOSE_UP_PX = 50;
-const OPEN_MS = 550;           // slower open
-const CLOSE_MS = 480;          // slower close
-const SNAP_MS = 500;           // snap-back duration
-const VELOCITY_CLOSE = 0.4;    // px/ms upward = close on fast flick
+const OPEN_MS = 550;
+const CLOSE_MS = 500;
+const SNAP_MS = 550;
+const VELOCITY_CLOSE = 0.35;  // px/ms upward = close on fast flick
 
-// ─── Spring Easing Curves ───
-// Bouncy ease-out: fast start → overshoot → settle
-const SPRING_OPEN  = 'cubic-bezier(0.08, 1.5, 0.3, 1)';   // open: overshoot past target then settle
-const SPRING_CLOSE = 'cubic-bezier(0.4, 0, 0.15, 1)';      // close: fast start, gentle landing
-const SPRING_SNAP  = 'cubic-bezier(0.08, 1.6, 0.3, 1)';    // snap-back: extra bouncy
+// ─── Easing Curves ───
+const EASE_OUT_SMOOTH = 'cubic-bezier(0.16, 1, 0.3, 1)';  // Open: fast start → slow settle, NO overshoot
 
-// ─── Helper: Get box current visual rect (accounts for transform) ───
+function getClosePosCurve() {
+  // Position: overshoot past icon then settle back (เวี่ยง)
+  const speed = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
+  if (speed > 1.5) return 'cubic-bezier(0.05, 2.2, 0.25, 1)';  // big fling past
+  if (speed > 0.8) return 'cubic-bezier(0.08, 1.6, 0.28, 1)';  // medium fling
+  if (speed > 0.3) return 'cubic-bezier(0.12, 1.3, 0.3, 1)';   // small fling
+  return 'cubic-bezier(0.25, 0, 0.15, 1)';                      // slow release: no fling
+}
+
+const CLOSE_SIZE_CURVE = 'cubic-bezier(0.16, 1, 0.3, 1)';  // Size: smooth shrink, no overshoot
+
+// ─── Helper: Get box current visual rect ───
 function getBoxVisualRect() {
   const style = window.getComputedStyle(boxWeb);
   const left = parseFloat(boxWeb.style.left) || 0;
@@ -276,46 +246,39 @@ function getBoxVisualRect() {
   const height = parseFloat(boxWeb.style.height) || 0;
   const tx = dragCurrentX || 0;
   const ty = dragCurrentY || 0;
-
   const transform = style.transform;
   let scale = 1;
   if (transform && transform !== 'none') {
     const m = transform.match(/scale\(([^)]+)\)/);
     if (m) scale = parseFloat(m[1]);
   }
-
   const sw = width * scale;
   const sh = height * scale;
-  const offsetLeft = (width - sw) / 2;
-  const offsetTop = (height - sh) / 2;
-
   return {
-    left: left + offsetLeft + tx,
-    top: top + offsetTop + ty,
+    left: left + (width - sw) / 2 + tx,
+    top: top + (height - sh) / 2 + ty,
     width: sw,
     height: sh
   };
 }
 
-// ─── Helper: Velocity-based close check ───
+// ─── Helper: Should close? (distance or velocity) ───
 function shouldClose() {
-  // Distance check: swipe up > 50px
   if (dragCurrentY < -CLOSE_UP_PX) return true;
-  // Velocity check: fast flick upward
   if (velocityY < -VELOCITY_CLOSE) return true;
   return false;
 }
 
-// ─── Helper: Velocity-based snap curve ───
-function getSnapCurve() {
-  const speed = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
-  // Faster release = more bouncy
-  if (speed > 1.5) return 'cubic-bezier(0.05, 1.8, 0.25, 1)';  // extra springy
-  if (speed > 0.8) return 'cubic-bezier(0.08, 1.6, 0.3, 1)';   // normal spring
-  return 'cubic-bezier(0.1, 1.4, 0.35, 1)';                     // gentle spring
+// ─── Helper: Update gesture bar color based on state ───
+function updateGestureStyle() {
+  if (appState === 'closed') {
+    gestureBar.classList.remove('on-app');
+  } else {
+    gestureBar.classList.add('on-app');
+  }
 }
 
-// ─── Open App (can interrupt closing, can swipe out immediately) ───
+// ─── Open App ───
 function openApp(iconEl, url) {
   if (appState === 'opening' && lastIconEl === iconEl) return;
   if (appState === 'open' && lastIconEl === iconEl) return;
@@ -326,7 +289,7 @@ function openApp(iconEl, url) {
   const H = window.innerHeight;
   const rect = iconEl.getBoundingClientRect();
 
-  // ── Interrupt closing/dragging: morph from current visual position ──
+  // ── Interrupt closing/dragging: morph from current position ──
   if (appState === 'closing' || appState === 'dragging') {
     const vr = getBoxVisualRect();
 
@@ -345,29 +308,28 @@ function openApp(iconEl, url) {
     pendingUrl = url;
 
     dockWrap.classList.add('hidden');
-    homeGesture.classList.add('hidden');
     bgOverlay.classList.add('active');
     bgOverlay.style.opacity = '';
     boxWeb.classList.remove('passthrough');
 
-    boxWeb.style.transition = `all ${OPEN_MS}ms ${SPRING_OPEN}`;
+    // Open: smooth ease-out, NO bounce
+    boxWeb.style.transition = `all ${OPEN_MS}ms ${EASE_OUT_SMOOTH}`;
     boxWeb.style.left = '0px';
     boxWeb.style.top = '0px';
     boxWeb.style.width = W + 'px';
     boxWeb.style.height = H + 'px';
     boxWeb.style.borderRadius = '0px';
 
-    // Can swipe out IMMEDIATELY — set open right away
     appState = 'open';
     dragCurrentX = 0;
     dragCurrentY = 0;
+    updateGestureStyle();
 
-    // Load iframe slightly delayed for smoother animation
     if (openTimer) clearTimeout(openTimer);
     openTimer = setTimeout(() => {
       appFrame.src = url;
       openTimer = null;
-    }, 120);
+    }, 100);
 
     if (document.pointerLockElement) document.exitPointerLock();
     return;
@@ -389,35 +351,34 @@ function openApp(iconEl, url) {
   boxWeb.style.opacity = '1';
 
   appFrame.src = '';
-
   void boxWeb.offsetHeight;
 
   dockWrap.classList.add('hidden');
-  homeGesture.classList.add('hidden');
   bgOverlay.classList.add('active');
 
-  boxWeb.style.transition = `all ${OPEN_MS}ms ${SPRING_OPEN}`;
+  // Open: smooth ease-out, NO bounce — fast start, slow settle
+  boxWeb.style.transition = `all ${OPEN_MS}ms ${EASE_OUT_SMOOTH}`;
   boxWeb.style.left = '0px';
   boxWeb.style.top = '0px';
   boxWeb.style.width = W + 'px';
   boxWeb.style.height = H + 'px';
   boxWeb.style.borderRadius = '0px';
 
-  // Can swipe out IMMEDIATELY
   appState = 'open';
   dragCurrentX = 0;
   dragCurrentY = 0;
+  updateGestureStyle();
 
   if (openTimer) clearTimeout(openTimer);
   openTimer = setTimeout(() => {
     appFrame.src = url;
     openTimer = null;
-  }, 120);
+  }, 100);
 
   if (document.pointerLockElement) document.exitPointerLock();
 }
 
-// ─── Close App (animate to icon with spring) ───
+// ─── Close App (with momentum overshoot on position) ───
 function closeApp() {
   if (appState !== 'dragging' && appState !== 'open') return;
   appState = 'closing';
@@ -450,18 +411,19 @@ function closeApp() {
 
   boxWeb.classList.add('passthrough');
   dockWrap.classList.remove('hidden');
-  homeGesture.classList.remove('hidden');
   bgOverlay.classList.remove('active');
   bgOverlay.style.opacity = '';
 
-  // Animate to icon with fast-start-slow-end
-  boxWeb.style.transition = `all ${CLOSE_MS}ms ${SPRING_CLOSE}`;
+  // Position: overshoot (เวี่ยง) based on velocity
+  // Size: smooth shrink, NO overshoot
+  const posCurve = getClosePosCurve();
+  boxWeb.style.transition = `left ${CLOSE_MS}ms ${posCurve}, top ${CLOSE_MS}ms ${posCurve}, width ${CLOSE_MS}ms ${CLOSE_SIZE_CURVE}, height ${CLOSE_MS}ms ${CLOSE_SIZE_CURVE}, border-radius ${CLOSE_MS}ms ${CLOSE_SIZE_CURVE}, opacity ${CLOSE_MS}ms ease`;
   boxWeb.style.left = rect.left + 'px';
   boxWeb.style.top = rect.top + 'px';
   boxWeb.style.width = rect.width + 'px';
   boxWeb.style.height = rect.height + 'px';
   boxWeb.style.borderRadius = '15px';
-  boxWeb.style.opacity = '0.4';
+  boxWeb.style.opacity = '0.35';
 
   closeTimer = setTimeout(() => {
     boxWeb.style.display = 'none';
@@ -471,8 +433,11 @@ function closeApp() {
     appFrame.src = '';
     dragCurrentX = 0;
     dragCurrentY = 0;
+    velocityX = 0;
+    velocityY = 0;
     appState = 'closed';
     closeTimer = null;
+    updateGestureStyle();
     enterKiosk();
   }, CLOSE_MS);
 }
@@ -495,7 +460,6 @@ gestureBar.addEventListener('touchstart', (e) => {
   appState = 'dragging';
 
   dockWrap.classList.remove('hidden');
-  homeGesture.classList.remove('hidden');
   boxWeb.style.transition = 'none';
 }, { passive: false });
 
@@ -508,10 +472,9 @@ gestureBar.addEventListener('touchmove', (e) => {
   const x = e.touches[0].clientX;
   const y = e.touches[0].clientY;
 
-  // Velocity tracking (last 50ms window)
   const dt = now - lastMoveTime;
   if (dt > 0) {
-    velocityX = (x - lastMoveX) / dt;  // px/ms
+    velocityX = (x - lastMoveX) / dt;
     velocityY = (y - lastMoveY) / dt;
   }
   lastMoveX = x;
@@ -538,14 +501,12 @@ gestureBar.addEventListener('touchend', () => {
     closeApp();
   } else {
     appState = 'open';
-    const curve = getSnapCurve();
-    boxWeb.style.transition = `all ${SNAP_MS}ms ${curve}`;
+    boxWeb.style.transition = `all ${SNAP_MS}ms ${EASE_OUT_SMOOTH}`;
     boxWeb.style.transform = 'translate(0, 0) scale(1)';
     boxWeb.style.borderRadius = '0px';
     bgOverlay.style.opacity = '';
     bgOverlay.classList.add('active');
     dockWrap.classList.add('hidden');
-    homeGesture.classList.add('hidden');
     dragCurrentX = 0;
     dragCurrentY = 0;
   }
@@ -569,7 +530,6 @@ gestureBar.addEventListener('mousedown', (e) => {
   appState = 'dragging';
 
   dockWrap.classList.remove('hidden');
-  homeGesture.classList.remove('hidden');
   boxWeb.style.transition = 'none';
 });
 
@@ -609,14 +569,12 @@ document.addEventListener('mouseup', () => {
     closeApp();
   } else {
     appState = 'open';
-    const curve = getSnapCurve();
-    boxWeb.style.transition = `all ${SNAP_MS}ms ${curve}`;
+    boxWeb.style.transition = `all ${SNAP_MS}ms ${EASE_OUT_SMOOTH}`;
     boxWeb.style.transform = 'translate(0, 0) scale(1)';
     boxWeb.style.borderRadius = '0px';
     bgOverlay.style.opacity = '';
     bgOverlay.classList.add('active');
     dockWrap.classList.add('hidden');
-    homeGesture.classList.add('hidden');
     dragCurrentX = 0;
     dragCurrentY = 0;
   }
