@@ -436,9 +436,13 @@ function closeApp() {
   bgOverlay.classList.remove('active');
   bgOverlay.style.opacity = '';
 
+  // Icon start scale
+  lastIconEl.style.transition = 'transform 0.1s ease';
+
   let totalMs = 0;
-  const maxMs = 900;
+  const maxMs = 1100;
   let lastTs = null;
+  let settled = false;
 
   function tick(ts) {
     if (!lastTs) lastTs = ts;
@@ -475,11 +479,31 @@ function closeApp() {
     boxWeb.style.borderRadius = curR + 'px';
     boxWeb.style.opacity      = curO;
 
-    // ── Settled? ──
+    // ── ICON scale: bigger when box is closer ──
     const posDist = Math.sqrt((cx - tx) ** 2 + (cy - ty) ** 2);
-    const vel     = Math.sqrt(vx * vx + vy * vy);
-    if (posDist < 0.5 && vel < 8 && sizeT >= 1) {
-      finishClose();
+    const maxDist = Math.sqrt(W * W + H * H);
+    const proximity = 1 - Math.min(posDist / (maxDist * 0.5), 1); // 0=far, 1=at icon
+    const iconScale = 1 + proximity * 0.35;
+    lastIconEl.style.transform = `scale(${iconScale})`;
+
+    // ── Settled? → gentle fade close ──
+    const vel = Math.sqrt(vx * vx + vy * vy);
+    if (!settled && posDist < 3 && vel < 15 && sizeT >= 0.95) {
+      settled = true;
+      // Gentle close: smooth shrink to icon + fade
+      boxWeb.style.transition = 'all 350ms cubic-bezier(0.25, 0, 0.15, 1)';
+      boxWeb.style.left         = iconRect.left + 'px';
+      boxWeb.style.top          = iconRect.top + 'px';
+      boxWeb.style.width        = iconRect.width + 'px';
+      boxWeb.style.height       = iconRect.height + 'px';
+      boxWeb.style.borderRadius = '15px';
+      boxWeb.style.opacity      = '0';
+
+      // Icon settle back
+      lastIconEl.style.transition = 'transform 350ms cubic-bezier(0.25, 0, 0.15, 1)';
+      lastIconEl.style.transform = 'scale(1)';
+
+      setTimeout(finishClose, 360);
       return;
     }
 
@@ -491,7 +515,10 @@ function closeApp() {
     boxWeb.style.display      = 'none';
     boxWeb.style.opacity      = '1';
     boxWeb.style.transform    = 'none';
+    boxWeb.style.transition   = 'none';
     boxWeb.classList.remove('passthrough');
+    lastIconEl.style.transition = 'none';
+    lastIconEl.style.transform  = '';
     appFrame.src = '';
     dragCurrentX = 0;
     dragCurrentY = 0;
