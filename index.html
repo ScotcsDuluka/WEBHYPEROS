@@ -171,14 +171,14 @@ img.wallpaper {
 }
 .gesture-bar:active { cursor: grabbing; }
 .gesture-pill {
-  width: 134px;
+  width: 180px;
   height: 5px;
   border-radius: 3px;
   background: rgba(255,255,255,0.35);
   transition: background 0.4s ease, width 0.15s ease;
   pointer-events: none;
 }
-.gesture-bar:active .gesture-pill { width: 110px; }
+.gesture-bar:active .gesture-pill { width: 150px; }
 .gesture-bar.on-app .gesture-pill { background: rgba(0,0,0,0.18); }
 .gesture-bar.on-app:active .gesture-pill { background: rgba(0,0,0,0.35); }
 </style>
@@ -406,7 +406,19 @@ function moveIconToBox(iconEl, box) {
   // placeholder กดได้ → เปิดแอป
   const _url = iconEl.dataset.url;
   ph.onclick = () => { openApp(iconEl, _url); };
-  iconEl.parentElement.insertBefore(ph, iconEl);
+
+  // ★ ถ้า icon ยังอยู่ใน dock → ใส่ placeholder แทนที่ตำแหน่งเดิม
+  // ถ้า icon ไม่ได้อยู่ใน dock แล้ว (อยู่ใน box อื่น) → ใส่ placeholder ใน dock ตรงที่เหมาะสม
+  const dock = document.querySelector('.dock');
+  if (iconEl.parentElement === dock) {
+    // ปกติ: icon อยู่ใน dock → ใส่ placeholder แทน
+    dock.insertBefore(ph, iconEl);
+  } else if (!ph.parentElement) {
+    // icon ไม่ได้อยู่ใน dock แล้ว + placeholder ไม่ได้อยู่ใน DOM → ใส่ placeholder ท้าย dock
+    dock.appendChild(ph);
+  }
+  // ถ้า placeholder อยู่ใน dock อยู่แล้ว → ไม่ต้องทำอะไร
+
   box.el.appendChild(iconEl);
 }
 
@@ -414,9 +426,14 @@ function moveIconToBox(iconEl, box) {
 function moveIconToDock(iconEl) {
   const iconId = iconEl.id;
   const ph = dockPlaceholders.get(iconId);
+  const dock = document.querySelector('.dock');
   if (ph && ph.parentElement) {
+    // placeholder อยู่ใน dock → ใส่ icon แทนที่ placeholder
     ph.parentElement.insertBefore(iconEl, ph);
     ph.remove();
+  } else if (dock) {
+    // ไม่มี placeholder → ใส่ icon ท้าย dock
+    dock.appendChild(iconEl);
   }
   iconEl.classList.remove('icon-visible');
 }
@@ -433,9 +450,17 @@ function openApp(iconEl, url) {
     return;
   }
 
+  // ── ★ ถ้าไอคอนอยู่ใน box อื่น (closing/open) → force-reset ก่อน ──
+  // เพื่อย้าย icon กลับ dock ก่อนจะวัดตำแหน่ง + ใส่ placeholder
+  const iconInBox = boxPool.find(b => b.icon === iconEl && b.state !== 'idle');
+  if (iconInBox) {
+    forceResetBox(iconInBox);
+  }
+
   // ── ถ้ามี box ที่เปิดอยู่ (แอปอื่น) → เริ่มปิดมัน ──
-  if (currentOpen) {
-    closeBox(currentOpen);
+  const currentOpen2 = findOpenBox();
+  if (currentOpen2) {
+    closeBox(currentOpen2);
   }
 
   // ── หา idle box ──
@@ -457,12 +482,12 @@ function openApp(iconEl, url) {
 
   if (!box) return; // ไม่น่าเกิด
 
-  // ── เริ่มเปิด ──
+  // ── บังคับ reflow ก่อนวัด (icon ต้องอยู่ใน dock แล้ว) ──
   void document.body.offsetHeight;
   const iconRect = iconEl.getBoundingClientRect();
   const iconTf = getIconTransform(iconRect);
 
-  box.target = iconTf;
+  box.target = iconTf; // ★ จำตำแหน่ง ICON ไว้ → ใช้ตอนปิด (tx, ty, sx, sy)
   box.icon = iconEl;
   moveIconToBox(iconEl, box);
 
