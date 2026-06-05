@@ -416,19 +416,17 @@ function closeApp() {
   const dy = ty - cy;
   const distToTarget = Math.sqrt(dx * dx + dy * dy);
 
-  // ── Swipe speed → initial velocity in SWIPE direction (แรงเวี่ยง) ──
-  // ปัดขึ้นเร็ว = momentum ขึ้นบน → กล่องบินขึ้น → สปริงดึงกลับลงไอคอน → เด้งสลับ
+  // ── Swipe speed → momentum ขึ้นบนเท่านั้น (เวี่ยงบน) ──
   const swipeSpeed = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
   let vx = 0, vy = 0;
   if (swipeSpeed > 0.15) {
     const momentum = swipeSpeed * 2800;
-    vx = velocityX * momentum / swipeSpeed;  // swipe direction X
-    vy = velocityY * momentum / swipeSpeed;  // swipe direction Y
+    vy = -Math.abs(momentum);  // ขึ้นบนเท่านั้น (Y ลบ = ขึ้น)
   }
 
-  // Spring config: underdamped = มีเวี่ยง + เด้งสลับ
-  const stiffness = 160;
-  const damping   = 10;
+  // Spring config: underdamped เด้งสลับชัดๆ
+  const stiffness = 200;
+  const damping   = 7;
 
   // UI
   boxWeb.classList.add('passthrough');
@@ -479,16 +477,14 @@ function closeApp() {
     boxWeb.style.borderRadius = curR + 'px';
     boxWeb.style.opacity      = curO;
 
-    // ── ICON scale: bigger when box is closer ──
-    const posDist = Math.sqrt((cx - tx) ** 2 + (cy - ty) ** 2);
-    const maxDist = Math.sqrt(W * W + H * H);
-    const proximity = 1 - Math.min(posDist / (maxDist * 0.5), 1); // 0=far, 1=at icon
-    const iconScale = 1 + proximity * 0.35;
+    // ── ICON scale = BOX scale (size ICON = size BOX) ──
+    const iconScale = curW / iconRect.width;
     lastIconEl.style.transform = `scale(${iconScale})`;
 
     // ── Settled? → gentle fade close ──
+    const posDist = Math.sqrt((cx - tx) ** 2 + (cy - ty) ** 2);
     const vel = Math.sqrt(vx * vx + vy * vy);
-    if (!settled && posDist < 3 && vel < 15 && sizeT >= 0.95) {
+    if (!settled && posDist < 1 && vel < 5 && sizeT >= 0.98) {
       settled = true;
       // Gentle close: smooth shrink to icon + fade
       boxWeb.style.transition = 'all 350ms cubic-bezier(0.25, 0, 0.15, 1)';
