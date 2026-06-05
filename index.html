@@ -122,76 +122,30 @@ document.addEventListener('dblclick', e => e.preventDefault());
 document.addEventListener('dragstart', e => e.preventDefault());
 document.addEventListener('selectstart', e => e.preventDefault());
 
-// ─── Kiosk Mode (Fullscreen + Keyboard Lock + Pointer Lock) ───
+// Kiosk (no pointer lock — mouse free for testing)
 let escPressed = false;
-let pointerLocked = false;
-
 async function enterKiosk() {
   if (escPressed) return;
   const el = document.documentElement;
-
-  // 1) Fullscreen
   if (!document.fullscreenElement) {
     try { await el.requestFullscreen(); } catch(e) {}
   }
-
-  // 2) Keyboard Lock — block Esc, Alt+Tab, Win, F-keys, etc.
   if (navigator.keyboard && navigator.keyboard.lock) {
-    try {
-      await navigator.keyboard.lock([
-        'Escape','AltLeft','AltRight','Tab','MetaLeft','MetaRight',
-        'F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12',
-        'ControlLeft','ControlRight','ShiftLeft','ShiftRight'
-      ]);
-    } catch(e) {}
+    try { await navigator.keyboard.lock(['Escape','AltLeft','AltRight','Tab','MetaLeft','MetaRight','F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12','ControlLeft','ControlRight']); } catch(e) {}
   }
-
-  // 3) Pointer Lock — relative mouse mode (blocks ChromeOS system gestures)
-  //    This is how Chrome Remote Desktop blocks tablet swipe gestures
-  try {
-    await el.requestPointerLock();
-  } catch(e) {}
 }
-
-// Enter kiosk on first click/tap
 document.addEventListener('click', enterKiosk, { once: true });
 document.addEventListener('touchend', enterKiosk, { once: true });
-
-// Re-enter fullscreen if exited (not by ESC)
 document.addEventListener('fullscreenchange', () => {
   if (!document.fullscreenElement && !escPressed) setTimeout(enterKiosk, 200);
   if (document.fullscreenElement) escPressed = false;
 });
-
-// Re-lock pointer if lost (not by ESC)
-document.addEventListener('pointerlockchange', () => {
-  pointerLocked = !!document.pointerLockElement;
-  if (!document.pointerLockElement && !escPressed && document.fullscreenElement) {
-    setTimeout(() => {
-      document.documentElement.requestPointerLock().catch(() => {});
-    }, 200);
-  }
-});
-
-// ESC = only way out
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    escPressed = true;
-    if (document.pointerLockElement) document.exitPointerLock();
-    if (document.fullscreenElement) document.exitFullscreen();
-    return;
-  }
+  if (e.key === 'Escape') { escPressed = true; if (document.fullscreenElement) document.exitFullscreen(); return; }
   e.preventDefault();
 });
-
-// Lock navigation (block back swipe)
-history.pushState(null,'',location.href);
-history.pushState(null,'',location.href);
-history.pushState(null,'',location.href);
-window.addEventListener('popstate', () => {
-  history.pushState(null,'',location.href);
-  enterKiosk();
-});
+history.pushState(null,'',location.href); history.pushState(null,'',location.href); history.pushState(null,'',location.href);
+window.addEventListener('popstate', () => { history.pushState(null,'',location.href); enterKiosk(); });
 </script>
 
 </body>
