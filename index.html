@@ -30,7 +30,7 @@ img.wallpaper {
   pointer-events: none;
 }
 
-/* ─── Background Overlay (dim when app open) ─── */
+/* ─── Background Overlay ─── */
 .bg-overlay {
   position: fixed;
   top: 0; left: 0;
@@ -101,29 +101,70 @@ img.wallpaper {
 }
 .app-icon svg { position: relative; z-index: 1; }
 
-/* ─── Box WEB ─── */
-.box-web {
+/* ─── BOX_anim — ICON + BOX ในกล่องเดียวกัน ─── */
+.box-anim {
   position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
   z-index: 20;
   display: none;
-  background: #fff;
-  overflow: hidden;
-  will-change: transform, left, top, width, height, border-radius;
+  transform-origin: 0 0;
+  will-change: transform;
 }
-.box-web.passthrough {
-  pointer-events: none;
-}
-.box-web iframe {
-  width: 100%;
-  height: 100%;
-  border: none;
-  display: block;
-}
-.box-web.passthrough iframe {
+.box-anim.passthrough {
   pointer-events: none;
 }
 
-/* ─── Single Topmost Gesture Bar ─── */
+/* Icon overlay — แสดงเมื่อ BOX_anim เล็ก = ดูเหมือนไอคอน */
+.anim-icon {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 15px;
+  z-index: 2;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.anim-icon.visible { opacity: 1; }
+.anim-icon svg {
+  width: 52%; height: 52%;
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));
+}
+.anim-icon::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 50%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.04) 100%);
+  border-radius: 15px 15px 0 0;
+  pointer-events: none;
+}
+
+/* Box WEB — iframe content */
+.box-web {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: #fff;
+  overflow: hidden;
+  will-change: border-radius;
+}
+.box-web iframe {
+  width: 100%; height: 100%;
+  border: none; display: block;
+}
+.box-anim.passthrough .box-web,
+.box-anim.passthrough iframe {
+  pointer-events: none;
+}
+
+/* ─── Gesture Bar ─── */
 .gesture-bar {
   position: fixed;
   bottom: 8px;
@@ -147,16 +188,9 @@ img.wallpaper {
   transition: background 0.4s ease, width 0.15s ease;
   pointer-events: none;
 }
-.gesture-bar:active .gesture-pill {
-  width: 110px;
-}
-/* Dark pill when app is open (on white bg) */
-.gesture-bar.on-app .gesture-pill {
-  background: rgba(0,0,0,0.18);
-}
-.gesture-bar.on-app:active .gesture-pill {
-  background: rgba(0,0,0,0.35);
-}
+.gesture-bar:active .gesture-pill { width: 110px; }
+.gesture-bar.on-app .gesture-pill { background: rgba(0,0,0,0.18); }
+.gesture-bar.on-app:active .gesture-pill { background: rgba(0,0,0,0.35); }
 </style>
 </head>
 <body>
@@ -166,12 +200,15 @@ img.wallpaper {
 <!-- Background Overlay -->
 <div class="bg-overlay" id="bgOverlay"></div>
 
-<!-- Box WEB -->
-<div class="box-web" id="boxWeb">
-  <iframe id="appFrame" src="" allow="autoplay; fullscreen"></iframe>
+<!-- BOX_anim — ICON + BOX อยู่ด้วยกัน -->
+<div class="box-anim" id="boxAnim">
+  <div class="box-web" id="boxWeb">
+    <iframe id="appFrame" src="" allow="autoplay; fullscreen"></iframe>
+  </div>
+  <div class="anim-icon" id="animIcon"></div>
 </div>
 
-<!-- Single Topmost Gesture Bar -->
+<!-- Gesture Bar -->
 <div class="gesture-bar" id="gestureBar">
   <div class="gesture-pill"></div>
 </div>
@@ -179,13 +216,11 @@ img.wallpaper {
 <!-- Dock -->
 <div class="dock-wrap" id="dockWrap">
   <div class="dock">
-    <!-- Settings -->
     <div class="app-icon" style="background: linear-gradient(145deg, #CFD8DC, #546E7A);" id="btnSettings">
       <svg width="26" height="26" viewBox="0 0 24 24" fill="white" fill-opacity=".88">
         <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.49.49 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 00-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1112 8.4a3.6 3.6 0 010 7.2z"/>
       </svg>
     </div>
-    <!-- YouTube -->
     <div class="app-icon" style="background: linear-gradient(145deg, #EF9A9A, #C62828);" id="btnYouTube">
       <svg width="26" height="26" viewBox="0 0 24 24" fill="white" fill-opacity=".9">
         <path d="M10 15l5.19-3L10 9v6m11.56-7.83c.13.47.22 1.1.28 1.9.07.8.1 1.49.1 2.09L22 12c0 2.19-.16 3.8-.44 4.83-.25.9-.83 1.48-1.73 1.73-.47.13-1.33.22-2.65.28-1.3.07-2.49.1-3.59.1L12 19c-4.19 0-6.8-.16-7.83-.44-.9-.25-1.48-.83-1.73-1.73-.13-.47-.22-1.1-.28-1.9-.07-.8-.1-1.49-.1-2.09L2 12c0-2.19.16-3.8.44-4.83.25-.9.83-1.48 1.73-1.73.47-.13 1.33-.22 2.65-.28 1.3-.07 2.49-.1 3.59-.1L12 5c4.19 0 6.8.16 7.83.44.9.25 1.48.83 1.73 1.73z"/>
@@ -195,120 +230,100 @@ img.wallpaper {
 </div>
 
 <script>
-// ─── App State ───
-let appState = 'closed'; // closed | opening | open | dragging | closing
+// ─── State ───
+let appState = 'closed'; // closed | open | dragging | closing
 let lastIconEl = null;
 let pendingUrl = '';
-let dragStartX = 0;
-let dragStartY = 0;
-let dragCurrentX = 0;
-let dragCurrentY = 0;
+let dragStartX = 0, dragStartY = 0;
+let dragCurrentX = 0, dragCurrentY = 0;
 let openTimer = null;
-let closeTimer = null;
 let closeRafId = null;
 
-// Velocity tracking
+// Velocity
 let lastMoveX = 0, lastMoveY = 0, lastMoveTime = 0;
 let velocityX = 0, velocityY = 0;
 
-const boxWeb = document.getElementById('boxWeb');
+const boxAnim  = document.getElementById('boxAnim');
+const boxWeb   = document.getElementById('boxWeb');
+const animIcon = document.getElementById('animIcon');
 const appFrame = document.getElementById('appFrame');
 const gestureBar = document.getElementById('gestureBar');
 const dockWrap = document.getElementById('dockWrap');
 const bgOverlay = document.getElementById('bgOverlay');
 
-// ─── Animation Tuning ───
+// ─── Tuning ───
 const CLOSE_UP_PX = 50;
 const OPEN_MS = 550;
 const SNAP_MS = 550;
-const VELOCITY_CLOSE = 0.35;  // px/ms upward = close on fast flick
+const VELOCITY_CLOSE = 0.35;
+const EASE_OUT_SMOOTH = 'cubic-bezier(0.16, 1, 0.3, 1)';
 
-// ─── Easing Curves ───
-const EASE_OUT_SMOOTH = 'cubic-bezier(0.16, 1, 0.3, 1)';  // fast start → slow settle, NO overshoot
-
-// ─── Helper: Get box current visual rect ───
-function getBoxVisualRect() {
-  const style = window.getComputedStyle(boxWeb);
-  const left = parseFloat(boxWeb.style.left) || 0;
-  const top = parseFloat(boxWeb.style.top) || 0;
-  const width = parseFloat(boxWeb.style.width) || 0;
-  const height = parseFloat(boxWeb.style.height) || 0;
-  const tx = dragCurrentX || 0;
-  const ty = dragCurrentY || 0;
-  const transform = style.transform;
-  let scale = 1;
-  if (transform && transform !== 'none') {
-    const m = transform.match(/scale\(([^)]+)\)/);
-    if (m) scale = parseFloat(m[1]);
-  }
-  const sw = width * scale;
-  const sh = height * scale;
-  return {
-    left: left + (width - sw) / 2 + tx,
-    top: top + (height - sh) / 2 + ty,
-    width: sw,
-    height: sh
-  };
+// ─── Helper: ICON → transform ที่จะวาง BOX_anim ที่ไอคอน ───
+function getIconTransform(iconRect) {
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  const s = iconRect.width / W;
+  const tx = iconRect.left + iconRect.width / 2 - W * s / 2;
+  const ty = iconRect.top + iconRect.height / 2 - H * s / 2;
+  return { tx, ty, s };
 }
 
-// ─── Helper: Should close? (distance or velocity) ───
+// ─── Helper: border-radius ที่ถูกต้อง (ชดเชย scale) ───
+function calcRadius(progress, scale) {
+  // progress: 0=fullscreen(squared), 1=icon(rounded)
+  const visualR = progress * 15;
+  return visualR / Math.max(0.01, scale);
+}
+
+// ─── Helper: Should close? ───
 function shouldClose() {
   if (dragCurrentY < -CLOSE_UP_PX) return true;
   if (velocityY < -VELOCITY_CLOSE) return true;
   return false;
 }
 
-// ─── Helper: Update gesture bar color based on state ───
+// ─── Helper: Update gesture bar ───
 function updateGestureStyle() {
-  if (appState === 'closed') {
-    gestureBar.classList.remove('on-app');
-  } else {
-    gestureBar.classList.add('on-app');
-  }
+  gestureBar.classList.toggle('on-app', appState !== 'closed');
+}
+
+// ─── Helper: Set anim-icon content from dock icon ───
+function setAnimIconContent(iconEl) {
+  animIcon.style.background = iconEl.style.background;
+  const svg = iconEl.querySelector('svg');
+  animIcon.innerHTML = svg ? svg.outerHTML : '';
 }
 
 // ─── Open App ───
 function openApp(iconEl, url) {
-  if (appState === 'opening' && lastIconEl === iconEl) return;
   if (appState === 'open' && lastIconEl === iconEl) return;
 
-  if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
   if (closeRafId) { cancelAnimationFrame(closeRafId); closeRafId = null; }
 
   const W = window.innerWidth;
   const H = window.innerHeight;
-  const rect = iconEl.getBoundingClientRect();
+  const iconRect = iconEl.getBoundingClientRect();
+  const iconTf = getIconTransform(iconRect);
 
-  // ── Interrupt closing/dragging: morph from current position ──
+  lastIconEl = iconEl;
+  pendingUrl = url;
+  setAnimIconContent(iconEl);
+
+  // ── Interrupt closing/dragging ──
   if (appState === 'closing' || appState === 'dragging') {
-    const vr = getBoxVisualRect();
-
-    boxWeb.style.transition = 'none';
-    boxWeb.style.transform = 'none';
-    boxWeb.style.left = vr.left + 'px';
-    boxWeb.style.top = vr.top + 'px';
-    boxWeb.style.width = vr.width + 'px';
-    boxWeb.style.height = vr.height + 'px';
-    boxWeb.style.borderRadius = boxWeb.style.borderRadius || '15px';
+    boxAnim.classList.remove('passthrough');
+    animIcon.classList.remove('visible');
+    boxWeb.style.background = '#fff';
     boxWeb.style.opacity = '1';
 
-    void boxWeb.offsetHeight;
-
-    lastIconEl = iconEl;
-    pendingUrl = url;
+    boxAnim.style.transition = `transform ${OPEN_MS}ms ${EASE_OUT_SMOOTH}`;
+    boxAnim.style.transform = 'none';
+    boxWeb.style.transition = `border-radius ${OPEN_MS}ms ${EASE_OUT_SMOOTH}`;
+    boxWeb.style.borderRadius = '0px';
 
     dockWrap.classList.add('hidden');
     bgOverlay.classList.add('active');
     bgOverlay.style.opacity = '';
-    boxWeb.classList.remove('passthrough');
-
-    // Open: smooth ease-out, NO bounce
-    boxWeb.style.transition = `all ${OPEN_MS}ms ${EASE_OUT_SMOOTH}`;
-    boxWeb.style.left = '0px';
-    boxWeb.style.top = '0px';
-    boxWeb.style.width = W + 'px';
-    boxWeb.style.height = H + 'px';
-    boxWeb.style.borderRadius = '0px';
 
     appState = 'open';
     dragCurrentX = 0;
@@ -316,43 +331,40 @@ function openApp(iconEl, url) {
     updateGestureStyle();
 
     if (openTimer) clearTimeout(openTimer);
-    openTimer = setTimeout(() => {
-      appFrame.src = url;
-      openTimer = null;
-    }, 100);
-
+    openTimer = setTimeout(() => { appFrame.src = url; openTimer = null; }, 100);
     if (document.pointerLockElement) document.exitPointerLock();
     return;
   }
 
   // ── Normal open from closed ──
-  lastIconEl = iconEl;
-  pendingUrl = url;
+  // Start at icon: show icon overlay
+  boxAnim.style.display = 'block';
+  boxAnim.style.transition = 'none';
+  boxAnim.style.transform = `translate(${iconTf.tx}px, ${iconTf.ty}px) scale(${iconTf.s})`;
+  boxAnim.classList.remove('passthrough');
 
-  boxWeb.style.transition = 'none';
-  boxWeb.style.transform = 'none';
-  boxWeb.style.display = 'block';
-  boxWeb.classList.remove('passthrough');
-  boxWeb.style.left = rect.left + 'px';
-  boxWeb.style.top = rect.top + 'px';
-  boxWeb.style.width = rect.width + 'px';
-  boxWeb.style.height = rect.height + 'px';
-  boxWeb.style.borderRadius = '15px';
+  animIcon.classList.add('visible');
+  boxWeb.style.borderRadius = calcRadius(1, iconTf.s) + 'px';
+  boxWeb.style.background = 'transparent';
   boxWeb.style.opacity = '1';
 
   appFrame.src = '';
-  void boxWeb.offsetHeight;
+  void boxAnim.offsetHeight;
 
   dockWrap.classList.add('hidden');
   bgOverlay.classList.add('active');
 
-  // Open: smooth ease-out, NO bounce — fast start, slow settle
-  boxWeb.style.transition = `all ${OPEN_MS}ms ${EASE_OUT_SMOOTH}`;
-  boxWeb.style.left = '0px';
-  boxWeb.style.top = '0px';
-  boxWeb.style.width = W + 'px';
-  boxWeb.style.height = H + 'px';
+  // Animate to fullscreen
+  boxAnim.style.transition = `transform ${OPEN_MS}ms ${EASE_OUT_SMOOTH}`;
+  boxAnim.style.transform = 'none';
+  boxWeb.style.transition = `border-radius ${OPEN_MS}ms ${EASE_OUT_SMOOTH}`;
   boxWeb.style.borderRadius = '0px';
+
+  // Fade out icon overlay early
+  setTimeout(() => {
+    animIcon.classList.remove('visible');
+    boxWeb.style.background = '#fff';
+  }, OPEN_MS * 0.25);
 
   appState = 'open';
   dragCurrentX = 0;
@@ -360,87 +372,69 @@ function openApp(iconEl, url) {
   updateGestureStyle();
 
   if (openTimer) clearTimeout(openTimer);
-  openTimer = setTimeout(() => {
-    appFrame.src = url;
-    openTimer = null;
-  }, 100);
-
+  openTimer = setTimeout(() => { appFrame.src = url; openTimer = null; }, 100);
   if (document.pointerLockElement) document.exitPointerLock();
 }
 
-// ─── Close App (Spring Physics — แรงเวี่ยง) ───
+// ─── Close App (Spring Physics — เวี่ยงบน + เด้งสลับ) ───
 function closeApp() {
   if (appState !== 'dragging' && appState !== 'open') return;
   appState = 'closing';
 
-  if (openTimer)  { clearTimeout(openTimer);  openTimer = null; }
-  if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
+  if (openTimer)  { clearTimeout(openTimer); openTimer = null; }
   if (closeRafId) { cancelAnimationFrame(closeRafId); closeRafId = null; }
 
-  const iconRect = lastIconEl.getBoundingClientRect();
   const W = window.innerWidth;
   const H = window.innerHeight;
+  const iconRect = lastIconEl.getBoundingClientRect();
+  const target = getIconTransform(iconRect);
 
-  // ── Current visual state (convert transform → absolute) ──
-  const dist = Math.sqrt(dragCurrentX * dragCurrentX + dragCurrentY * dragCurrentY);
+  // Current state from drag
+  const dragDist = Math.sqrt(dragCurrentX * dragCurrentX + dragCurrentY * dragCurrentY);
   const maxDim = Math.max(W, H);
-  const progress = Math.min(dist / maxDim, 1);
-  const scale = 1 - progress * 0.15;
+  const dragProgress = Math.min(dragDist / maxDim, 1);
+  const dragScale = 1 - dragProgress * 0.15;
 
-  const startLeft   = (W - W * scale) / 2 + dragCurrentX;
-  const startTop    = (H - H * scale) / 2 + dragCurrentY;
-  const startWidth  = W * scale;
-  const startHeight = H * scale;
-  const startRadius = progress * 30;
+  // Spring state: tx, ty, s
+  let curTx = dragCurrentX;
+  let curTy = dragCurrentY;
+  let curS  = dragScale;
 
-  // Freeze
-  boxWeb.style.transition   = 'none';
-  boxWeb.style.transform    = 'none';
-  boxWeb.style.left         = startLeft + 'px';
-  boxWeb.style.top          = startTop + 'px';
-  boxWeb.style.width        = startWidth + 'px';
-  boxWeb.style.height       = startHeight + 'px';
-  boxWeb.style.borderRadius = startRadius + 'px';
-  void boxWeb.offsetHeight;
+  // Target
+  const tTx = target.tx;
+  const tTy = target.ty;
+  const tS  = target.s;
 
-  // ── Spring: center position ──
-  let cx = startLeft + startWidth / 2;
-  let cy = startTop  + startHeight / 2;
+  // Velocity: continue drag momentum + เวี่ยงบน
+  let velTx = 0;
+  let velTy = 0;
+  let velS  = 0;
 
-  // Target center (icon)
-  const tx = iconRect.left + iconRect.width / 2;
-  const ty = iconRect.top  + iconRect.height / 2;
-
-  // Direction to target
-  const dx = tx - cx;
-  const dy = ty - cy;
-  const distToTarget = Math.sqrt(dx * dx + dy * dy);
-
-  // ── Swipe speed → momentum ขึ้นบนเท่านั้น (เวี่ยงบน) ──
   const swipeSpeed = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
-  let vx = 0, vy = 0;
   if (swipeSpeed > 0.15) {
     const momentum = swipeSpeed * 2800;
-    vy = -Math.abs(momentum);  // ขึ้นบนเท่านั้น (Y ลบ = ขึ้น)
+    velTy = -Math.abs(momentum); // ขึ้นบนเท่านั้น
   }
 
-  // Spring config: underdamped เด้งสลับชัดๆ
-  const stiffness = 200;
-  const damping   = 7;
+  // Spring: position underdamped (เด้งสลับ), scale overdamped (ลื่น)
+  const posStiff = 200;
+  const posDamp  = 7;
+  const sStiff   = 350;
+  const sDamp    = 22;
 
   // UI
-  boxWeb.classList.add('passthrough');
+  boxAnim.classList.add('passthrough');
+  boxAnim.style.transition = 'none';
+  boxWeb.style.transition = 'none';
   dockWrap.classList.remove('hidden');
   bgOverlay.classList.remove('active');
   bgOverlay.style.opacity = '';
 
-  // Icon start scale
-  lastIconEl.style.transition = 'transform 0.1s ease';
-
   let totalMs = 0;
-  const maxMs = 1100;
+  const maxMs = 1200;
   let lastTs = null;
   let settled = false;
+  let iconShown = false;
 
   function tick(ts) {
     if (!lastTs) lastTs = ts;
@@ -450,56 +444,57 @@ function closeApp() {
 
     if (totalMs > maxMs) { finishClose(); return; }
 
-    // ── Spring sub-steps for stability ──
+    // Spring sub-steps
     const steps = Math.max(1, Math.round(frameMs / 4));
     const dt = (frameMs / 1000) / steps;
     for (let i = 0; i < steps; i++) {
-      const fx = -stiffness * (cx - tx) - damping * vx;
-      const fy = -stiffness * (cy - ty) - damping * vy;
-      vx += fx * dt;
-      vy += fy * dt;
-      cx += vx * dt;
-      cy += vy * dt;
+      // Position spring (underdamped = เด้งสลับ)
+      const fx = -posStiff * (curTx - tTx) - posDamp * velTx;
+      const fy = -posStiff * (curTy - tTy) - posDamp * velTy;
+      velTx += fx * dt;
+      velTy += fy * dt;
+      curTx += velTx * dt;
+      curTy += velTy * dt;
+
+      // Scale spring (overdamped = ลื่น ไม่เด้ง)
+      const fs = -sStiff * (curS - tS) - sDamp * velS;
+      velS += fs * dt;
+      curS += velS * dt;
     }
 
-    // ── Size: smooth ease-out (NO overshoot on size) ──
-    const sizeT = 1 - Math.pow(1 - Math.min(totalMs / 450, 1), 3);
-    const curW = startWidth  + (iconRect.width  - startWidth)  * sizeT;
-    const curH = startHeight + (iconRect.height - startHeight) * sizeT;
-    const curR = startRadius + (15 - startRadius) * sizeT;
-    const curO = 1 - sizeT * 0.65;
+    // Clamp scale
+    curS = Math.max(tS * 0.5, Math.min(1.1, curS));
 
-    // ── Apply ──
-    boxWeb.style.left         = (cx - curW / 2) + 'px';
-    boxWeb.style.top          = (cy - curH / 2) + 'px';
-    boxWeb.style.width        = curW + 'px';
-    boxWeb.style.height       = curH + 'px';
-    boxWeb.style.borderRadius = curR + 'px';
-    boxWeb.style.opacity      = curO;
+    // Border-radius (compensate for scale)
+    const sizeProgress = Math.max(0, Math.min(1, (1 - curS) / (1 - tS)));
+    const cssR = calcRadius(sizeProgress, curS);
 
-    // ── ICON scale = BOX scale (size ICON = size BOX) ──
-    const iconScale = curW / iconRect.width;
-    lastIconEl.style.transform = `scale(${iconScale})`;
+    // Show icon overlay when box is small
+    if (!iconShown && curS < 0.25) {
+      iconShown = true;
+      animIcon.classList.add('visible');
+      boxWeb.style.background = 'transparent';
+    }
 
-    // ── Settled? → gentle fade close ──
-    const posDist = Math.sqrt((cx - tx) ** 2 + (cy - ty) ** 2);
-    const vel = Math.sqrt(vx * vx + vy * vy);
-    if (!settled && posDist < 1 && vel < 5 && sizeT >= 0.98) {
+    // Apply
+    boxAnim.style.transform = `translate(${curTx}px, ${curTy}px) scale(${curS})`;
+    boxWeb.style.borderRadius = cssR + 'px';
+
+    // Settled?
+    const txD = Math.abs(curTx - tTx);
+    const tyD = Math.abs(curTy - tTy);
+    const sD  = Math.abs(curS - tS);
+    const vel = Math.sqrt(velTx * velTx + velTy * velTy);
+
+    if (!settled && txD < 1 && tyD < 1 && sD < 0.003 && vel < 5) {
       settled = true;
-      // Gentle close: smooth shrink to icon + fade
-      boxWeb.style.transition = 'all 350ms cubic-bezier(0.25, 0, 0.15, 1)';
-      boxWeb.style.left         = iconRect.left + 'px';
-      boxWeb.style.top          = iconRect.top + 'px';
-      boxWeb.style.width        = iconRect.width + 'px';
-      boxWeb.style.height       = iconRect.height + 'px';
-      boxWeb.style.borderRadius = '15px';
-      boxWeb.style.opacity      = '0';
-
-      // Icon settle back
-      lastIconEl.style.transition = 'transform 350ms cubic-bezier(0.25, 0, 0.15, 1)';
-      lastIconEl.style.transform = 'scale(1)';
-
-      setTimeout(finishClose, 360);
+      // Gentle finish: smooth snap + fade
+      boxAnim.style.transition = `transform 300ms cubic-bezier(0.25, 0, 0.15, 1)`;
+      boxAnim.style.transform = `translate(${tTx}px, ${tTy}px) scale(${tS})`;
+      boxWeb.style.transition = `border-radius 300ms cubic-bezier(0.25, 0, 0.15, 1), opacity 300ms ease`;
+      boxWeb.style.borderRadius = calcRadius(1, tS) + 'px';
+      boxWeb.style.opacity = '0';
+      setTimeout(finishClose, 310);
       return;
     }
 
@@ -508,20 +503,21 @@ function closeApp() {
 
   function finishClose() {
     if (closeRafId) { cancelAnimationFrame(closeRafId); closeRafId = null; }
-    boxWeb.style.display      = 'none';
-    boxWeb.style.opacity      = '1';
-    boxWeb.style.transform    = 'none';
-    boxWeb.style.transition   = 'none';
-    boxWeb.classList.remove('passthrough');
-    lastIconEl.style.transition = 'none';
-    lastIconEl.style.transform  = '';
+    boxAnim.style.display = 'none';
+    boxAnim.style.transform = 'none';
+    boxAnim.style.transition = 'none';
+    boxAnim.classList.remove('passthrough');
+    boxWeb.style.opacity = '1';
+    boxWeb.style.borderRadius = '0px';
+    boxWeb.style.background = '#fff';
+    boxWeb.style.transition = 'none';
+    animIcon.classList.remove('visible');
     appFrame.src = '';
     dragCurrentX = 0;
     dragCurrentY = 0;
     velocityX = 0;
     velocityY = 0;
     appState = 'closed';
-    closeTimer = null;
     updateGestureStyle();
     enterKiosk();
   }
@@ -529,9 +525,9 @@ function closeApp() {
   closeRafId = requestAnimationFrame(tick);
 }
 
-// ─── Gesture Bar: Touch Events ───
+// ─── Gesture Bar: Touch ───
 gestureBar.addEventListener('touchstart', (e) => {
-  if (appState !== 'open' && appState !== 'opening') return;
+  if (appState !== 'open') return;
   e.preventDefault();
   e.stopPropagation();
 
@@ -547,6 +543,7 @@ gestureBar.addEventListener('touchstart', (e) => {
   appState = 'dragging';
 
   dockWrap.classList.remove('hidden');
+  boxAnim.style.transition = 'none';
   boxWeb.style.transition = 'none';
 }, { passive: false });
 
@@ -576,20 +573,20 @@ gestureBar.addEventListener('touchmove', (e) => {
   const progress = Math.min(dist / maxDim, 1);
   const scale = 1 - progress * 0.15;
 
-  boxWeb.style.transform = `translate(${dragCurrentX}px, ${dragCurrentY}px) scale(${scale})`;
-  boxWeb.style.borderRadius = (progress * 30) + 'px';
+  boxAnim.style.transform = `translate(${dragCurrentX}px, ${dragCurrentY}px) scale(${scale})`;
+  boxWeb.style.borderRadius = calcRadius(progress, scale) + 'px';
   bgOverlay.style.opacity = Math.max(0, 1 - progress * 2);
 }, { passive: false });
 
 gestureBar.addEventListener('touchend', () => {
   if (appState !== 'dragging') return;
-
   if (shouldClose()) {
     closeApp();
   } else {
     appState = 'open';
-    boxWeb.style.transition = `all ${SNAP_MS}ms ${EASE_OUT_SMOOTH}`;
-    boxWeb.style.transform = 'translate(0, 0) scale(1)';
+    boxAnim.style.transition = `transform ${SNAP_MS}ms ${EASE_OUT_SMOOTH}`;
+    boxAnim.style.transform = 'none';
+    boxWeb.style.transition = `border-radius ${SNAP_MS}ms ${EASE_OUT_SMOOTH}`;
     boxWeb.style.borderRadius = '0px';
     bgOverlay.style.opacity = '';
     bgOverlay.classList.add('active');
@@ -599,9 +596,9 @@ gestureBar.addEventListener('touchend', () => {
   }
 });
 
-// ─── Gesture Bar: Mouse Events (desktop test) ───
+// ─── Gesture Bar: Mouse ───
 gestureBar.addEventListener('mousedown', (e) => {
-  if (appState !== 'open' && appState !== 'opening') return;
+  if (appState !== 'open') return;
   e.preventDefault();
   e.stopPropagation();
 
@@ -617,6 +614,7 @@ gestureBar.addEventListener('mousedown', (e) => {
   appState = 'dragging';
 
   dockWrap.classList.remove('hidden');
+  boxAnim.style.transition = 'none';
   boxWeb.style.transition = 'none';
 });
 
@@ -644,20 +642,20 @@ document.addEventListener('mousemove', (e) => {
   const progress = Math.min(dist / maxDim, 1);
   const scale = 1 - progress * 0.15;
 
-  boxWeb.style.transform = `translate(${dragCurrentX}px, ${dragCurrentY}px) scale(${scale})`;
-  boxWeb.style.borderRadius = (progress * 30) + 'px';
+  boxAnim.style.transform = `translate(${dragCurrentX}px, ${dragCurrentY}px) scale(${scale})`;
+  boxWeb.style.borderRadius = calcRadius(progress, scale) + 'px';
   bgOverlay.style.opacity = Math.max(0, 1 - progress * 2);
 });
 
 document.addEventListener('mouseup', () => {
   if (appState !== 'dragging') return;
-
   if (shouldClose()) {
     closeApp();
   } else {
     appState = 'open';
-    boxWeb.style.transition = `all ${SNAP_MS}ms ${EASE_OUT_SMOOTH}`;
-    boxWeb.style.transform = 'translate(0, 0) scale(1)';
+    boxAnim.style.transition = `transform ${SNAP_MS}ms ${EASE_OUT_SMOOTH}`;
+    boxAnim.style.transform = 'none';
+    boxWeb.style.transition = `border-radius ${SNAP_MS}ms ${EASE_OUT_SMOOTH}`;
     boxWeb.style.borderRadius = '0px';
     bgOverlay.style.opacity = '';
     bgOverlay.classList.add('active');
@@ -667,11 +665,10 @@ document.addEventListener('mouseup', () => {
   }
 });
 
-// ─── Icon Click Handlers ───
+// ─── Icon Click ───
 document.getElementById('btnSettings').addEventListener('click', () => {
   openApp(document.getElementById('btnSettings'), 'settings.html');
 });
-
 document.getElementById('btnYouTube').addEventListener('click', () => {
   openApp(document.getElementById('btnYouTube'), 'youtube.html');
 });
@@ -682,18 +679,16 @@ document.addEventListener('dblclick', e => e.preventDefault());
 document.addEventListener('dragstart', e => e.preventDefault());
 document.addEventListener('selectstart', e => e.preventDefault());
 
-// ─── Kiosk Mode (Fullscreen + Keyboard Lock + Pointer Lock) ───
+// ─── Kiosk Mode ───
 let escPressed = false;
 let pointerLocked = false;
 
 async function enterKiosk() {
   if (escPressed) return;
   const el = document.documentElement;
-
   if (!document.fullscreenElement) {
     try { await el.requestFullscreen(); } catch(e) {}
   }
-
   if (navigator.keyboard && navigator.keyboard.lock) {
     try {
       await navigator.keyboard.lock([
@@ -703,7 +698,6 @@ async function enterKiosk() {
       ]);
     } catch(e) {}
   }
-
   try { await el.requestPointerLock(); } catch(e) {}
 }
 
@@ -718,9 +712,7 @@ document.addEventListener('fullscreenchange', () => {
 document.addEventListener('pointerlockchange', () => {
   pointerLocked = !!document.pointerLockElement;
   if (!document.pointerLockElement && !escPressed && document.fullscreenElement && appState === 'closed') {
-    setTimeout(() => {
-      document.documentElement.requestPointerLock().catch(() => {});
-    }, 200);
+    setTimeout(() => { document.documentElement.requestPointerLock().catch(() => {}); }, 200);
   }
 });
 
@@ -742,6 +734,5 @@ window.addEventListener('popstate', () => {
   enterKiosk();
 });
 </script>
-
 </body>
 </html>
