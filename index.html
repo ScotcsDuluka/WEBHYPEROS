@@ -211,7 +211,7 @@ img.wallpaper {
     </div>
     <div class="app-icon" style="background: linear-gradient(145deg, #EF9A9A, #C62828);" id="btnYouTube">
       <svg width="26" height="26" viewBox="0 0 24 24" fill="white" fill-opacity=".9">
-        <path d="M10 15l5.19-3L10 9v6m11.56-7.83c.13.47.22 1.1.28 1.9.07.8.1 1.49.1 2.09L22 12c0 2.19-.16 3.8-.44 4.83-.25.9-.83 1.48-1.73 1.73-.47.13-1.33.22-2.65.28-1.3.07-2.49.1-3.59.1L12 19c-4.19 0-6.8-.16-7.83-.44-.9-.25-1.48-.83-1.73-1.73-.13-.47-.22-1.1-.28-1.9-.07-.8-.1-1.49-.1-2.09L2 12c0-2.19.16-3.8.44-4.83.25-.9.83-1.48 1.73-1.73.47-.13 1.33-.22 2.65-.28 1.3-.07 2.49-.1 3.59-.1L12 5c4.19 0 6.8.16 7.83.44.9.25 1.48.83 1.73 1.73z"/>
+        <path d="M10 15l5.19-3L10 9v6m11.56-7.83c.13.47.22 1.1.28 1.9.07.8.1 1.49.1 2.09L22 12c0 2.19-.16 3.8-.44 4.83-.25.9-.83 1.48-1.73 1.73-.47.13-1.33.22-2.65.28-1.3.07-2.49.1-3.59.1L12 19c-4.19 0-6.8-.16-7.83-.44-.9-.25-1.48-.83-1.73-1.73-.13-.47-.22-1.1-.28-1.9-.07-.8-.1-1.49-.1-2.09L2 12c0-2.19.16-3.8.44-4.83.25-.9.83-1.48 1.73-1.73.47-.13 1.33-.22 2.65-.28 1.3-.07-2.49-.1-3.59-.1L12 5c4.19 0 6.8.16 7.83.44.9.25 1.48.83 1.73 1.73z"/>
       </svg>
     </div>
   </div>
@@ -261,7 +261,6 @@ function getIconTransform(iconRect) {
 
 // ─── Helper: border-radius ที่ถูกต้อง (ชดเชย scale) ───
 function calcRadius(progress, scale) {
-  // progress: 0=fullscreen(squared), 1=icon(rounded)
   const visualR = progress * 15;
   return visualR / Math.max(0.01, scale);
 }
@@ -280,24 +279,20 @@ function updateGestureStyle() {
 
 // ─── Helper: ย้ายไอคอนจาก dock → box_anim ───
 function moveIconToBox(iconEl) {
-  // สร้าง placeholder รักษาที่ว่างใน dock
   if (!dockPlaceholder) {
     dockPlaceholder = document.createElement('div');
     dockPlaceholder.style.cssText = 'width:52px;height:52px;flex-shrink:0;';
   }
   iconEl.parentElement.insertBefore(dockPlaceholder, iconEl);
-  // ย้ายไอคอนเข้า box_anim
   boxAnim.appendChild(iconEl);
 }
 
 // ─── Helper: ย้ายไอคอนจาก box_anim → dock ───
 function moveIconToDock(iconEl) {
-  // ย้ายกลับไป dock ที่ placeholder
   if (dockPlaceholder && dockPlaceholder.parentElement) {
     dockPlaceholder.parentElement.insertBefore(iconEl, dockPlaceholder);
     dockPlaceholder.remove();
   }
-  // รีเซ็ต style ที่เคยใส่ตอนอยู่ใน box_anim
   iconEl.classList.remove('icon-visible');
 }
 
@@ -312,9 +307,7 @@ function openApp(iconEl, url) {
   const iconRect = iconEl.getBoundingClientRect();
   const iconTf = getIconTransform(iconRect);
 
-  // ย้ายไอคอนจริงเข้า box_anim
   if (lastIconEl && lastIconEl !== iconEl) {
-    // ย้ายไอคอนเก่าคืน dock ก่อน
     moveIconToDock(lastIconEl);
   }
   lastIconEl = iconEl;
@@ -349,7 +342,6 @@ function openApp(iconEl, url) {
   }
 
   // ── Normal open from closed ──
-  // Start at icon: show icon
   boxAnim.style.display = 'block';
   boxAnim.style.transition = 'none';
   boxAnim.style.transform = `translate(${iconTf.tx}px, ${iconTf.ty}px) scale(${iconTf.sx}, ${iconTf.sy})`;
@@ -366,13 +358,11 @@ function openApp(iconEl, url) {
   dockWrap.classList.add('hidden');
   bgOverlay.classList.add('active');
 
-  // Animate to fullscreen
   boxAnim.style.transition = `transform ${OPEN_MS}ms ${EASE_OUT_SMOOTH}`;
   boxAnim.style.transform = 'none';
   boxWeb.style.transition = `border-radius ${OPEN_MS}ms ${EASE_OUT_SMOOTH}`;
   boxWeb.style.borderRadius = '0px';
 
-  // Fade out icon early
   setTimeout(() => {
     iconEl.classList.remove('icon-visible');
     boxWeb.style.background = '#fff';
@@ -398,13 +388,11 @@ function closeApp() {
 
   const W = window.innerWidth;
   const H = window.innerHeight;
-  // ใช้ placeholder ใน dock เป็นจุดอ้างอิง (ยึด ICON เป็นหลัก)
   const iconRect = dockPlaceholder && dockPlaceholder.parentElement
     ? dockPlaceholder.getBoundingClientRect()
     : lastIconEl.getBoundingClientRect();
   const target = getIconTransform(iconRect);
 
-  // ── Start position (from drag) ──
   const startTx = dragCurrentX;
   const startTy = dragCurrentY;
   const dragDist = Math.sqrt(dragCurrentX * dragCurrentX + dragCurrentY * dragCurrentY);
@@ -412,7 +400,6 @@ function closeApp() {
   const dragProgress = Math.min(dragDist / maxDim, 1);
   const startS = 1 - dragProgress * 0.15;
 
-  // ── Target position ──
   const tTx = target.tx;
   const tTy = target.ty;
   const tSx = target.sx;
@@ -438,7 +425,6 @@ function closeApp() {
   const oStiff = 20 * SPEED * SPEED;
   const oDamp  = 10 * SPEED;
 
-  // UI
   boxAnim.classList.add('passthrough');
   boxAnim.style.transition = 'none';
   boxWeb.style.transition = 'none';
@@ -460,58 +446,47 @@ function closeApp() {
 
     if (totalMs > maxMs) { finishClose(); return; }
 
-    // ── Spring sub-steps ──
     const steps = Math.max(1, Math.round(frameMs / 4));
     const dt = (frameMs / 1000) / steps;
     for (let i = 0; i < steps; i++) {
-      // Progress spring (overdamped → smooth to p=1)
       const fp = -pStiff * (p - 1) - pDamp * pVel;
       pVel += fp * dt;
       p += pVel * dt;
 
-      // Offset Y spring (underdamped → เด้งสลับรอบ oY=0)
       const fo = -oStiff * oY - oDamp * oYVel;
       oYVel += fo * dt;
       oY += oYVel * dt;
     }
 
-    // Clamp progress
     p = Math.max(0, Math.min(1.02, p));
 
-    // ── Compute actual position ──
     const curTx = startTx + (tTx - startTx) * p;
     const curTy = startTy + (tTy - startTy) * p + oY * flingHeight;
     const curSx = startS + (tSx - startS) * p;
     const curSy = startS + (tSy - startS) * p;
 
-    // Clamp scale
     const clampSx = Math.max(tSx * 0.5, Math.min(1.1, curSx));
     const clampSy = Math.max(tSy * 0.5, Math.min(1.1, curSy));
     const minS = Math.min(clampSx, clampSy);
 
-    // Border-radius
     const sizeProgress = Math.max(0, Math.min(1, (1 - minS) / (1 - Math.min(tSx, tSy))));
     const cssR = calcRadius(sizeProgress, minS);
 
-    // Show icon when box is small
     if (!iconShown && minS < 0.3) {
       iconShown = true;
       lastIconEl.classList.add('icon-visible');
       boxWeb.style.background = 'transparent';
     }
 
-    // Apply
     boxAnim.style.transform = `translate(${curTx}px, ${curTy}px) scale(${clampSx}, ${clampSy})`;
     boxWeb.style.borderRadius = cssR + 'px';
 
-    // ── Settled? ──
     const pDist = Math.abs(p - 1);
     const oYAbs = Math.abs(oY);
     const oYVelAbs = Math.abs(oYVel);
 
     if (!settled && pDist < 0.003 && oYAbs < 0.01 && oYVelAbs < 0.1) {
       settled = true;
-      // Gentle finish: snap + fade
       boxAnim.style.transition = `transform 250ms cubic-bezier(0.25, 0, 0.15, 1)`;
       boxAnim.style.transform = `translate(${tTx}px, ${tTy}px) scale(${tSx}, ${tSy})`;
       boxWeb.style.transition = `border-radius 250ms cubic-bezier(0.25, 0, 0.15, 1), opacity 250ms ease`;
@@ -534,7 +509,6 @@ function closeApp() {
     boxWeb.style.borderRadius = '0px';
     boxWeb.style.background = '#fff';
     boxWeb.style.transition = 'none';
-    // ย้ายไอคอนกลับ dock
     if (lastIconEl) moveIconToDock(lastIconEl);
     appFrame.src = '';
     dragCurrentX = 0;
@@ -620,7 +594,74 @@ gestureBar.addEventListener('touchend', () => {
   }
 });
 
+// ─── Gesture Bar: Mouse (desktop test) ───
+gestureBar.addEventListener('mousedown', (e) => {
+  if (appState !== 'open') return;
+  e.preventDefault();
+  e.stopPropagation();
 
+  dragStartX = e.clientX;
+  dragStartY = e.clientY;
+  lastMoveX = dragStartX;
+  lastMoveY = dragStartY;
+  lastMoveTime = performance.now();
+  dragCurrentX = 0;
+  dragCurrentY = 0;
+  velocityX = 0;
+  velocityY = 0;
+  appState = 'dragging';
+
+  dockWrap.classList.remove('hidden');
+  boxAnim.style.transition = 'none';
+  boxWeb.style.transition = 'none';
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (appState !== 'dragging') return;
+
+  const now = performance.now();
+  const x = e.clientX;
+  const y = e.clientY;
+
+  const dt = now - lastMoveTime;
+  if (dt > 0) {
+    velocityX = (x - lastMoveX) / dt;
+    velocityY = (y - lastMoveY) / dt;
+  }
+  lastMoveX = x;
+  lastMoveY = y;
+  lastMoveTime = now;
+
+  dragCurrentX = x - dragStartX;
+  dragCurrentY = y - dragStartY;
+
+  const dist = Math.sqrt(dragCurrentX * dragCurrentX + dragCurrentY * dragCurrentY);
+  const maxDim = Math.max(window.innerWidth, window.innerHeight);
+  const progress = Math.min(dist / maxDim, 1);
+  const scale = 1 - progress * 0.15;
+
+  boxAnim.style.transform = `translate(${dragCurrentX}px, ${dragCurrentY}px) scale(${scale})`;
+  boxWeb.style.borderRadius = calcRadius(progress, scale) + 'px';
+  bgOverlay.style.opacity = Math.max(0, 1 - progress * 2);
+});
+
+document.addEventListener('mouseup', () => {
+  if (appState !== 'dragging') return;
+  if (shouldClose()) {
+    closeApp();
+  } else {
+    appState = 'open';
+    boxAnim.style.transition = `transform ${SNAP_MS}ms ${EASE_OUT_SMOOTH}`;
+    boxAnim.style.transform = 'none';
+    boxWeb.style.transition = `border-radius ${SNAP_MS}ms ${EASE_OUT_SMOOTH}`;
+    boxWeb.style.borderRadius = '0px';
+    bgOverlay.style.opacity = '';
+    bgOverlay.classList.add('active');
+    dockWrap.classList.add('hidden');
+    dragCurrentX = 0;
+    dragCurrentY = 0;
+  }
+});
 
 // ─── Icon Click ───
 document.getElementById('btnSettings').addEventListener('click', () => {
@@ -636,6 +677,60 @@ document.addEventListener('dblclick', e => e.preventDefault());
 document.addEventListener('dragstart', e => e.preventDefault());
 document.addEventListener('selectstart', e => e.preventDefault());
 
+// ─── Kiosk Mode ───
+let escPressed = false;
+let pointerLocked = false;
+
+async function enterKiosk() {
+  if (escPressed) return;
+  const el = document.documentElement;
+  if (!document.fullscreenElement) {
+    try { await el.requestFullscreen(); } catch(e) {}
+  }
+  if (navigator.keyboard && navigator.keyboard.lock) {
+    try {
+      await navigator.keyboard.lock([
+        'Escape','AltLeft','AltRight','Tab','MetaLeft','MetaRight',
+        'F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12',
+        'ControlLeft','ControlRight','ShiftLeft','ShiftRight'
+      ]);
+    } catch(e) {}
+  }
+  try { await el.requestPointerLock(); } catch(e) {}
+}
+
+document.addEventListener('click', enterKiosk, { once: true });
+document.addEventListener('touchend', enterKiosk, { once: true });
+
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement && !escPressed) setTimeout(enterKiosk, 200);
+  if (document.fullscreenElement) escPressed = false;
+});
+
+document.addEventListener('pointerlockchange', () => {
+  pointerLocked = !!document.pointerLockElement;
+  if (!document.pointerLockElement && !escPressed && document.fullscreenElement && appState === 'closed') {
+    setTimeout(() => { document.documentElement.requestPointerLock().catch(() => {}); }, 200);
+  }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    escPressed = true;
+    if (document.pointerLockElement) document.exitPointerLock();
+    if (document.fullscreenElement) document.exitFullscreen();
+    return;
+  }
+  e.preventDefault();
+});
+
+history.pushState(null,'',location.href);
+history.pushState(null,'',location.href);
+history.pushState(null,'',location.href);
+window.addEventListener('popstate', () => {
+  history.pushState(null,'',location.href);
+  enterKiosk();
+});
 </script>
 </body>
 </html>
