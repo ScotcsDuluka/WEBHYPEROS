@@ -27,30 +27,41 @@ img.wallpaper {
   -webkit-user-drag: none;
   pointer-events: none;
 }
+
+/* ─── Overlay to catch ALL touches (including bottom edge) ─── */
+.touch-shield {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 9999;
+  cursor: none;
+}
 </style>
 </head>
 <body>
 
 <img class="wallpaper" src="https://mir-s3-cdn-cf.behance.net/project_modules/1400_webp/4b5d40216256937.67b492e0e7551.jpg" alt="">
 
+<!-- Invisible layer on top of EVERYTHING to eat all touch events -->
+<div class="touch-shield" id="shield"></div>
+
 <script>
-// ─── Block everything ───
+const shield = document.getElementById('shield');
+
+// ─── Block ALL touch events on shield layer ───
+shield.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
+shield.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+shield.addEventListener('touchend', e => e.preventDefault(), { passive: false });
+shield.addEventListener('touchcancel', e => e.preventDefault(), { passive: false });
+
+// ─── Block everything else ───
 document.addEventListener('contextmenu', e => e.preventDefault());
-document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
 document.addEventListener('dblclick', e => e.preventDefault());
 document.addEventListener('gesturestart', e => e.preventDefault());
 document.addEventListener('gesturechange', e => e.preventDefault());
 document.addEventListener('gestureend', e => e.preventDefault());
 document.addEventListener('dragstart', e => e.preventDefault());
-
-// Block edge swipe zones
-document.addEventListener('touchstart', e => {
-  for (const t of e.touches) {
-    if (t.clientX < 20 || t.clientX > window.innerWidth - 20) {
-      e.preventDefault();
-    }
-  }
-}, { passive: false });
+document.addEventListener('selectstart', e => e.preventDefault());
 
 // ─── Lock navigation ───
 history.pushState(null, '', location.href);
@@ -61,12 +72,11 @@ window.addEventListener('popstate', () => {
   enterKiosk();
 });
 
-// ─── Kiosk mode: Fullscreen + Keyboard Lock + Pointer Lock ───
+// ─── Kiosk mode ───
 let escPressed = false;
 
 async function enterKiosk() {
   if (escPressed) return;
-
   const el = document.documentElement;
 
   // 1) Fullscreen
@@ -77,8 +87,7 @@ async function enterKiosk() {
     } catch(e) {}
   }
 
-  // 2) Keyboard Lock — blocks Esc, Alt+Tab, Alt+F4, Win key, etc.
-  //    Only works in fullscreen + requires user activation
+  // 2) Keyboard Lock — block Esc, Alt+Tab, Win, F-keys, etc.
   if (navigator.keyboard && navigator.keyboard.lock) {
     try {
       await navigator.keyboard.lock([
@@ -89,26 +98,24 @@ async function enterKiosk() {
     } catch(e) {}
   }
 
-  // 3) Pointer Lock — hides cursor, captures all mouse to this page
-  //    Esc to exit (but keyboard lock should block that)
+  // 3) Pointer Lock — hide cursor, capture mouse
   try {
     await el.requestPointerLock();
   } catch(e) {}
 }
 
-// Enter kiosk on first click/tap
-function onFirstTap() {
+// Enter kiosk on first tap on shield
+shield.addEventListener('click', () => {
   enterKiosk();
-  document.removeEventListener('click', onFirstTap);
-  document.removeEventListener('touchend', onFirstTap);
-}
-document.addEventListener('click', onFirstTap);
-document.addEventListener('touchend', onFirstTap);
+}, { once: true });
+shield.addEventListener('touchend', () => {
+  enterKiosk();
+}, { once: true });
 
-// Re-enter if something kicks us out
+// Re-enter if kicked out
 document.addEventListener('fullscreenchange', () => {
   if (!document.fullscreenElement && !escPressed) {
-    setTimeout(enterKiosk, 300);
+    setTimeout(enterKiosk, 200);
   }
   if (document.fullscreenElement) escPressed = false;
 });
@@ -117,15 +124,14 @@ document.addEventListener('pointerlockchange', () => {
   if (!document.pointerLockElement && !escPressed && document.fullscreenElement) {
     setTimeout(() => {
       document.documentElement.requestPointerLock().catch(() => {});
-    }, 300);
+    }, 200);
   }
 });
 
-// Keyboard: ESC exits everything, all other keys blocked
+// ESC = only way out
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     escPressed = true;
-    // Exit pointer lock + fullscreen
     if (document.pointerLockElement) document.exitPointerLock();
     if (document.fullscreenElement) document.exitFullscreen();
     return;
