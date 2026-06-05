@@ -110,11 +110,17 @@ img.wallpaper {
   overflow: hidden;
   will-change: transform, left, top, width, height, border-radius;
 }
+.box-web.passthrough {
+  pointer-events: none;
+}
 .box-web iframe {
   width: 100%;
   height: 100%;
   border: none;
   display: block;
+}
+.box-web.passthrough iframe {
+  pointer-events: none;
 }
 
 /* ─── Gesture Bar ─── */
@@ -184,10 +190,13 @@ img.wallpaper {
 // ─── App State ───
 let appState = 'closed'; // closed | opening | open | dragging | closing
 let lastIconEl = null;
+let pendingUrl = '';
 let dragStartX = 0;
 let dragStartY = 0;
 let dragCurrentX = 0;
 let dragCurrentY = 0;
+let openTimer = null;
+let closeTimer = null;
 
 const boxWeb = document.getElementById('boxWeb');
 const appFrame = document.getElementById('appFrame');
@@ -196,21 +205,108 @@ const dockWrap = document.getElementById('dockWrap');
 const bgOverlay = document.getElementById('bgOverlay');
 
 const CLOSE_UP_PX = 50; // swipe up > 50px = close
+const OPEN_MS = 400;
+const CLOSE_MS = 320;
 
-// ─── Open App ───
+// ─── Helper: Get box current visual rect (accounts for transform) ───
+function getBoxVisualRect() {
+  const style = window.getComputedStyle(boxWeb);
+  const left = parseFloat(boxWeb.style.left) || 0;
+  const top = parseFloat(boxWeb.style.top) || 0;
+  const width = parseFloat(boxWeb.style.width) || 0;
+  const height = parseFloat(boxWeb.style.height) || 0;
+  const tx = dragCurrentX || 0;
+  const ty = dragCurrentY || 0;
+
+  // Parse transform scale if any
+  const transform = style.transform;
+  let scale = 1;
+  if (transform && transform !== 'none') {
+    const m = transform.match(/scale\(([^)]+)\)/);
+    if (m) scale = parseFloat(m[1]);
+  }
+
+  const sw = width * scale;
+  const sh = height * scale;
+  const offsetLeft = (width - sw) / 2;
+  const offsetTop = (height - sh) / 2;
+
+  return {
+    left: left + offsetLeft + tx,
+    top: top + offsetTop + ty,
+    width: sw,
+    height: sh
+  };
+}
+
+// ─── Open App (can interrupt closing) ───
 function openApp(iconEl, url) {
-  if (appState !== 'closed') return;
-  appState = 'opening';
-  lastIconEl = iconEl;
+  // If already opening/open with same icon, ignore
+  if (appState === 'opening' && lastIconEl === iconEl) return;
+  if (appState === 'open' && lastIconEl === iconEl) return;
 
-  const rect = iconEl.getBoundingClientRect();
+  // Cancel pending close
+  if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
+
   const W = window.innerWidth;
   const H = window.innerHeight;
+  const rect = iconEl.getBoundingClientRect();
 
-  // Start from icon position
+  // ── Interrupt closing: morph from current visual position ──
+  if (appState === 'closing' || appState === 'dragging') {
+    const vr = getBoxVisualRect();
+
+    // Freeze current visual position as actual position
+    boxWeb.style.transition = 'none';
+    boxWeb.style.transform = 'none';
+    boxWeb.style.left = vr.left + 'px';
+    boxWeb.style.top = vr.top + 'px';
+    boxWeb.style.width = vr.width + 'px';
+    boxWeb.style.height = vr.height + 'px';
+    boxWeb.style.borderRadius = boxWeb.style.borderRadius || '15px';
+    boxWeb.style.opacity = '1';
+
+    void boxWeb.offsetHeight;
+
+    lastIconEl = iconEl;
+    pendingUrl = url;
+    appState = 'opening';
+
+    // Dock hides, overlay shows
+    dockWrap.classList.add('hidden');
+    bgOverlay.classList.add('active');
+    bgOverlay.style.opacity = '';
+    boxWeb.classList.remove('passthrough');
+
+    // Animate from current → fullscreen
+    boxWeb.style.transition = `all ${OPEN_MS}ms cubic-bezier(0.2, 0, 0, 1)`;
+    boxWeb.style.left = '0px';
+    boxWeb.style.top = '0px';
+    boxWeb.style.width = W + 'px';
+    boxWeb.style.height = H + 'px';
+    boxWeb.style.borderRadius = '0px';
+
+    // Load new URL after animation
+    if (openTimer) clearTimeout(openTimer);
+    openTimer = setTimeout(() => {
+      appFrame.src = url;
+      appState = 'open';
+      openTimer = null;
+    }, OPEN_MS);
+
+    if (document.pointerLockElement) document.exitPointerLock();
+    return;
+  }
+
+  // ── Normal open from closed ──
+  appState = 'opening';
+  lastIconEl = iconEl;
+  pendingUrl = url;
+
   boxWeb.style.transition = 'none';
   boxWeb.style.transform = 'none';
   boxWeb.style.display = 'block';
+  boxWeb.classList.remove('passthrough');
   boxWeb.style.left = rect.left + 'px';
   boxWeb.style.top = rect.top + 'px';
   boxWeb.style.width = rect.width + 'px';
@@ -220,37 +316,37 @@ function openApp(iconEl, url) {
 
   appFrame.src = '';
 
-  // Force reflow
   void boxWeb.offsetHeight;
 
-  // Hide dock
+  // Dock hides, overlay shows
   dockWrap.classList.add('hidden');
-
-  // Show overlay
   bgOverlay.classList.add('active');
 
-  // Animate to fullscreen
-  boxWeb.style.transition = 'all 0.45s cubic-bezier(0.2, 0, 0, 1)';
+  // Animate icon → fullscreen
+  boxWeb.style.transition = `all ${OPEN_MS}ms cubic-bezier(0.2, 0, 0, 1)`;
   boxWeb.style.left = '0px';
   boxWeb.style.top = '0px';
   boxWeb.style.width = W + 'px';
   boxWeb.style.height = H + 'px';
   boxWeb.style.borderRadius = '0px';
 
-  // Load iframe after animation
-  setTimeout(() => {
+  if (openTimer) clearTimeout(openTimer);
+  openTimer = setTimeout(() => {
     appFrame.src = url;
     appState = 'open';
-  }, 450);
+    openTimer = null;
+  }, OPEN_MS);
 
-  // Exit pointer lock for app interaction
   if (document.pointerLockElement) document.exitPointerLock();
 }
 
-// ─── Close App ───
+// ─── Close App (animate to icon) ───
 function closeApp() {
   if (appState !== 'dragging') return;
   appState = 'closing';
+
+  // Cancel pending open
+  if (openTimer) { clearTimeout(openTimer); openTimer = null; }
 
   const rect = lastIconEl.getBoundingClientRect();
   const W = window.innerWidth;
@@ -259,14 +355,13 @@ function closeApp() {
   const progress = Math.min(dist / Math.max(W, H), 1);
   const scale = 1 - progress * 0.15;
 
-  // Compute visual rect from current drag state
+  // Freeze current visual position as actual
   const vLeft = (W - W * scale) / 2 + dragCurrentX;
   const vTop = (H - H * scale) / 2 + dragCurrentY;
   const vWidth = W * scale;
   const vHeight = H * scale;
   const vRadius = progress * 30;
 
-  // Set visual position as actual, remove transform
   boxWeb.style.transition = 'none';
   boxWeb.style.transform = 'none';
   boxWeb.style.left = vLeft + 'px';
@@ -277,13 +372,16 @@ function closeApp() {
 
   void boxWeb.offsetHeight;
 
+  // Let clicks pass through to icons during close animation
+  boxWeb.classList.add('passthrough');
+
   // Show dock, fade overlay
   dockWrap.classList.remove('hidden');
   bgOverlay.classList.remove('active');
   bgOverlay.style.opacity = '';
 
   // Animate to icon position
-  boxWeb.style.transition = 'all 0.38s cubic-bezier(0.3, 0, 0, 1)';
+  boxWeb.style.transition = `all ${CLOSE_MS}ms cubic-bezier(0.3, 0, 0, 1)`;
   boxWeb.style.left = rect.left + 'px';
   boxWeb.style.top = rect.top + 'px';
   boxWeb.style.width = rect.width + 'px';
@@ -291,16 +389,18 @@ function closeApp() {
   boxWeb.style.borderRadius = '15px';
   boxWeb.style.opacity = '0.4';
 
-  setTimeout(() => {
+  closeTimer = setTimeout(() => {
     boxWeb.style.display = 'none';
     boxWeb.style.opacity = '1';
     boxWeb.style.transform = 'none';
+    boxWeb.classList.remove('passthrough');
     appFrame.src = '';
     dragCurrentX = 0;
     dragCurrentY = 0;
     appState = 'closed';
+    closeTimer = null;
     enterKiosk();
-  }, 380);
+  }, CLOSE_MS);
 }
 
 // ─── Gesture Bar: Touch Events ───
@@ -314,6 +414,9 @@ gestureBar.addEventListener('touchstart', (e) => {
   dragCurrentX = 0;
   dragCurrentY = 0;
   appState = 'dragging';
+
+  // Show dock immediately so icons are clickable
+  dockWrap.classList.remove('hidden');
 
   boxWeb.style.transition = 'none';
 }, { passive: false });
@@ -331,28 +434,24 @@ gestureBar.addEventListener('touchmove', (e) => {
   const progress = Math.min(dist / maxDim, 1);
   const scale = 1 - progress * 0.15;
 
-  // Box follows finger freely — translateX + translateY + scale
   boxWeb.style.transform = `translate(${dragCurrentX}px, ${dragCurrentY}px) scale(${scale})`;
   boxWeb.style.borderRadius = (progress * 30) + 'px';
-
-  // Fade overlay with distance
   bgOverlay.style.opacity = Math.max(0, 1 - progress * 2);
 }, { passive: false });
 
 gestureBar.addEventListener('touchend', () => {
   if (appState !== 'dragging') return;
 
-  // Swipe UP (negative Y) more than 50px = close
   if (dragCurrentY < -CLOSE_UP_PX) {
     closeApp();
   } else {
-    // Snap back to open
     appState = 'open';
     boxWeb.style.transition = 'all 0.35s cubic-bezier(0.2, 0, 0, 1)';
     boxWeb.style.transform = 'translate(0, 0) scale(1)';
     boxWeb.style.borderRadius = '0px';
     bgOverlay.style.opacity = '';
     bgOverlay.classList.add('active');
+    dockWrap.classList.add('hidden');
     dragCurrentX = 0;
     dragCurrentY = 0;
   }
@@ -370,6 +469,7 @@ gestureBar.addEventListener('mousedown', (e) => {
   dragCurrentY = 0;
   appState = 'dragging';
 
+  dockWrap.classList.remove('hidden');
   boxWeb.style.transition = 'none';
 });
 
@@ -392,7 +492,6 @@ document.addEventListener('mousemove', (e) => {
 document.addEventListener('mouseup', () => {
   if (appState !== 'dragging') return;
 
-  // Swipe UP (negative Y) more than 50px = close
   if (dragCurrentY < -CLOSE_UP_PX) {
     closeApp();
   } else {
@@ -402,6 +501,7 @@ document.addEventListener('mouseup', () => {
     boxWeb.style.borderRadius = '0px';
     bgOverlay.style.opacity = '';
     bgOverlay.classList.add('active');
+    dockWrap.classList.add('hidden');
     dragCurrentX = 0;
     dragCurrentY = 0;
   }
@@ -447,17 +547,14 @@ async function enterKiosk() {
   try { await el.requestPointerLock(); } catch(e) {}
 }
 
-// Enter kiosk on first click/tap
 document.addEventListener('click', enterKiosk, { once: true });
 document.addEventListener('touchend', enterKiosk, { once: true });
 
-// Re-enter fullscreen if exited (not by ESC)
 document.addEventListener('fullscreenchange', () => {
   if (!document.fullscreenElement && !escPressed) setTimeout(enterKiosk, 200);
   if (document.fullscreenElement) escPressed = false;
 });
 
-// Re-lock pointer only when app is closed
 document.addEventListener('pointerlockchange', () => {
   pointerLocked = !!document.pointerLockElement;
   if (!document.pointerLockElement && !escPressed && document.fullscreenElement && appState === 'closed') {
@@ -467,7 +564,6 @@ document.addEventListener('pointerlockchange', () => {
   }
 });
 
-// ESC = only way out
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     escPressed = true;
@@ -478,7 +574,6 @@ document.addEventListener('keydown', e => {
   e.preventDefault();
 });
 
-// Block back navigation
 history.pushState(null,'',location.href);
 history.pushState(null,'',location.href);
 history.pushState(null,'',location.href);
