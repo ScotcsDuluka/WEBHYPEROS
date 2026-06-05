@@ -243,6 +243,10 @@ let dragCurrentY = 0;
 let openTimer = null;
 let closeTimer = null;
 
+// Velocity tracking
+let lastMoveX = 0, lastMoveY = 0, lastMoveTime = 0;
+let velocityX = 0, velocityY = 0;
+
 const boxWeb = document.getElementById('boxWeb');
 const appFrame = document.getElementById('appFrame');
 const gestureBar = document.getElementById('gestureBar');
@@ -250,9 +254,18 @@ const homeGesture = document.getElementById('homeGesture');
 const dockWrap = document.getElementById('dockWrap');
 const bgOverlay = document.getElementById('bgOverlay');
 
-const CLOSE_UP_PX = 50; // swipe up > 50px = close
-const OPEN_MS = 400;
-const CLOSE_MS = 320;
+// ─── Animation Tuning ───
+const CLOSE_UP_PX = 50;
+const OPEN_MS = 550;           // slower open
+const CLOSE_MS = 480;          // slower close
+const SNAP_MS = 500;           // snap-back duration
+const VELOCITY_CLOSE = 0.4;    // px/ms upward = close on fast flick
+
+// ─── Spring Easing Curves ───
+// Bouncy ease-out: fast start → overshoot → settle
+const SPRING_OPEN  = 'cubic-bezier(0.08, 1.5, 0.3, 1)';   // open: overshoot past target then settle
+const SPRING_CLOSE = 'cubic-bezier(0.4, 0, 0.15, 1)';      // close: fast start, gentle landing
+const SPRING_SNAP  = 'cubic-bezier(0.08, 1.6, 0.3, 1)';    // snap-back: extra bouncy
 
 // ─── Helper: Get box current visual rect (accounts for transform) ───
 function getBoxVisualRect() {
@@ -264,7 +277,6 @@ function getBoxVisualRect() {
   const tx = dragCurrentX || 0;
   const ty = dragCurrentY || 0;
 
-  // Parse transform scale if any
   const transform = style.transform;
   let scale = 1;
   if (transform && transform !== 'none') {
@@ -285,24 +297,39 @@ function getBoxVisualRect() {
   };
 }
 
-// ─── Open App (can interrupt closing) ───
+// ─── Helper: Velocity-based close check ───
+function shouldClose() {
+  // Distance check: swipe up > 50px
+  if (dragCurrentY < -CLOSE_UP_PX) return true;
+  // Velocity check: fast flick upward
+  if (velocityY < -VELOCITY_CLOSE) return true;
+  return false;
+}
+
+// ─── Helper: Velocity-based snap curve ───
+function getSnapCurve() {
+  const speed = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
+  // Faster release = more bouncy
+  if (speed > 1.5) return 'cubic-bezier(0.05, 1.8, 0.25, 1)';  // extra springy
+  if (speed > 0.8) return 'cubic-bezier(0.08, 1.6, 0.3, 1)';   // normal spring
+  return 'cubic-bezier(0.1, 1.4, 0.35, 1)';                     // gentle spring
+}
+
+// ─── Open App (can interrupt closing, can swipe out immediately) ───
 function openApp(iconEl, url) {
-  // If already opening/open with same icon, ignore
   if (appState === 'opening' && lastIconEl === iconEl) return;
   if (appState === 'open' && lastIconEl === iconEl) return;
 
-  // Cancel pending close
   if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
 
   const W = window.innerWidth;
   const H = window.innerHeight;
   const rect = iconEl.getBoundingClientRect();
 
-  // ── Interrupt closing: morph from current visual position ──
+  // ── Interrupt closing/dragging: morph from current visual position ──
   if (appState === 'closing' || appState === 'dragging') {
     const vr = getBoxVisualRect();
 
-    // Freeze current visual position as actual position
     boxWeb.style.transition = 'none';
     boxWeb.style.transform = 'none';
     boxWeb.style.left = vr.left + 'px';
@@ -316,37 +343,37 @@ function openApp(iconEl, url) {
 
     lastIconEl = iconEl;
     pendingUrl = url;
-    appState = 'opening';
 
-    // Dock hides, overlay shows, home gesture hides
     dockWrap.classList.add('hidden');
     homeGesture.classList.add('hidden');
     bgOverlay.classList.add('active');
     bgOverlay.style.opacity = '';
     boxWeb.classList.remove('passthrough');
 
-    // Animate from current → fullscreen
-    boxWeb.style.transition = `all ${OPEN_MS}ms cubic-bezier(0.2, 0, 0, 1)`;
+    boxWeb.style.transition = `all ${OPEN_MS}ms ${SPRING_OPEN}`;
     boxWeb.style.left = '0px';
     boxWeb.style.top = '0px';
     boxWeb.style.width = W + 'px';
     boxWeb.style.height = H + 'px';
     boxWeb.style.borderRadius = '0px';
 
-    // Load new URL after animation
+    // Can swipe out IMMEDIATELY — set open right away
+    appState = 'open';
+    dragCurrentX = 0;
+    dragCurrentY = 0;
+
+    // Load iframe slightly delayed for smoother animation
     if (openTimer) clearTimeout(openTimer);
     openTimer = setTimeout(() => {
       appFrame.src = url;
-      appState = 'open';
       openTimer = null;
-    }, OPEN_MS);
+    }, 120);
 
     if (document.pointerLockElement) document.exitPointerLock();
     return;
   }
 
   // ── Normal open from closed ──
-  appState = 'opening';
   lastIconEl = iconEl;
   pendingUrl = url;
 
@@ -365,35 +392,36 @@ function openApp(iconEl, url) {
 
   void boxWeb.offsetHeight;
 
-  // Dock hides, overlay shows, home gesture hides
   dockWrap.classList.add('hidden');
   homeGesture.classList.add('hidden');
   bgOverlay.classList.add('active');
 
-  // Animate icon → fullscreen
-  boxWeb.style.transition = `all ${OPEN_MS}ms cubic-bezier(0.2, 0, 0, 1)`;
+  boxWeb.style.transition = `all ${OPEN_MS}ms ${SPRING_OPEN}`;
   boxWeb.style.left = '0px';
   boxWeb.style.top = '0px';
   boxWeb.style.width = W + 'px';
   boxWeb.style.height = H + 'px';
   boxWeb.style.borderRadius = '0px';
 
+  // Can swipe out IMMEDIATELY
+  appState = 'open';
+  dragCurrentX = 0;
+  dragCurrentY = 0;
+
   if (openTimer) clearTimeout(openTimer);
   openTimer = setTimeout(() => {
     appFrame.src = url;
-    appState = 'open';
     openTimer = null;
-  }, OPEN_MS);
+  }, 120);
 
   if (document.pointerLockElement) document.exitPointerLock();
 }
 
-// ─── Close App (animate to icon) ───
+// ─── Close App (animate to icon with spring) ───
 function closeApp() {
-  if (appState !== 'dragging') return;
+  if (appState !== 'dragging' && appState !== 'open') return;
   appState = 'closing';
 
-  // Cancel pending open
   if (openTimer) { clearTimeout(openTimer); openTimer = null; }
 
   const rect = lastIconEl.getBoundingClientRect();
@@ -403,7 +431,7 @@ function closeApp() {
   const progress = Math.min(dist / Math.max(W, H), 1);
   const scale = 1 - progress * 0.15;
 
-  // Freeze current visual position as actual
+  // Freeze current visual position
   const vLeft = (W - W * scale) / 2 + dragCurrentX;
   const vTop = (H - H * scale) / 2 + dragCurrentY;
   const vWidth = W * scale;
@@ -420,17 +448,14 @@ function closeApp() {
 
   void boxWeb.offsetHeight;
 
-  // Let clicks pass through to icons during close animation
   boxWeb.classList.add('passthrough');
-
-  // Show dock, home gesture, fade overlay
   dockWrap.classList.remove('hidden');
   homeGesture.classList.remove('hidden');
   bgOverlay.classList.remove('active');
   bgOverlay.style.opacity = '';
 
-  // Animate to icon position
-  boxWeb.style.transition = `all ${CLOSE_MS}ms cubic-bezier(0.3, 0, 0, 1)`;
+  // Animate to icon with fast-start-slow-end
+  boxWeb.style.transition = `all ${CLOSE_MS}ms ${SPRING_CLOSE}`;
   boxWeb.style.left = rect.left + 'px';
   boxWeb.style.top = rect.top + 'px';
   boxWeb.style.width = rect.width + 'px';
@@ -454,20 +479,23 @@ function closeApp() {
 
 // ─── Gesture Bar: Touch Events ───
 gestureBar.addEventListener('touchstart', (e) => {
-  if (appState !== 'open') return;
+  if (appState !== 'open' && appState !== 'opening') return;
   e.preventDefault();
   e.stopPropagation();
 
   dragStartX = e.touches[0].clientX;
   dragStartY = e.touches[0].clientY;
+  lastMoveX = dragStartX;
+  lastMoveY = dragStartY;
+  lastMoveTime = performance.now();
   dragCurrentX = 0;
   dragCurrentY = 0;
+  velocityX = 0;
+  velocityY = 0;
   appState = 'dragging';
 
-  // Show dock + home gesture immediately so icons are clickable
   dockWrap.classList.remove('hidden');
   homeGesture.classList.remove('hidden');
-
   boxWeb.style.transition = 'none';
 }, { passive: false });
 
@@ -476,8 +504,22 @@ gestureBar.addEventListener('touchmove', (e) => {
   e.preventDefault();
   e.stopPropagation();
 
-  dragCurrentX = e.touches[0].clientX - dragStartX;
-  dragCurrentY = e.touches[0].clientY - dragStartY;
+  const now = performance.now();
+  const x = e.touches[0].clientX;
+  const y = e.touches[0].clientY;
+
+  // Velocity tracking (last 50ms window)
+  const dt = now - lastMoveTime;
+  if (dt > 0) {
+    velocityX = (x - lastMoveX) / dt;  // px/ms
+    velocityY = (y - lastMoveY) / dt;
+  }
+  lastMoveX = x;
+  lastMoveY = y;
+  lastMoveTime = now;
+
+  dragCurrentX = x - dragStartX;
+  dragCurrentY = y - dragStartY;
 
   const dist = Math.sqrt(dragCurrentX * dragCurrentX + dragCurrentY * dragCurrentY);
   const maxDim = Math.max(window.innerWidth, window.innerHeight);
@@ -492,11 +534,12 @@ gestureBar.addEventListener('touchmove', (e) => {
 gestureBar.addEventListener('touchend', () => {
   if (appState !== 'dragging') return;
 
-  if (dragCurrentY < -CLOSE_UP_PX) {
+  if (shouldClose()) {
     closeApp();
   } else {
     appState = 'open';
-    boxWeb.style.transition = 'all 0.35s cubic-bezier(0.2, 0, 0, 1)';
+    const curve = getSnapCurve();
+    boxWeb.style.transition = `all ${SNAP_MS}ms ${curve}`;
     boxWeb.style.transform = 'translate(0, 0) scale(1)';
     boxWeb.style.borderRadius = '0px';
     bgOverlay.style.opacity = '';
@@ -510,14 +553,19 @@ gestureBar.addEventListener('touchend', () => {
 
 // ─── Gesture Bar: Mouse Events (desktop test) ───
 gestureBar.addEventListener('mousedown', (e) => {
-  if (appState !== 'open') return;
+  if (appState !== 'open' && appState !== 'opening') return;
   e.preventDefault();
   e.stopPropagation();
 
   dragStartX = e.clientX;
   dragStartY = e.clientY;
+  lastMoveX = dragStartX;
+  lastMoveY = dragStartY;
+  lastMoveTime = performance.now();
   dragCurrentX = 0;
   dragCurrentY = 0;
+  velocityX = 0;
+  velocityY = 0;
   appState = 'dragging';
 
   dockWrap.classList.remove('hidden');
@@ -528,8 +576,21 @@ gestureBar.addEventListener('mousedown', (e) => {
 document.addEventListener('mousemove', (e) => {
   if (appState !== 'dragging') return;
 
-  dragCurrentX = e.clientX - dragStartX;
-  dragCurrentY = e.clientY - dragStartY;
+  const now = performance.now();
+  const x = e.clientX;
+  const y = e.clientY;
+
+  const dt = now - lastMoveTime;
+  if (dt > 0) {
+    velocityX = (x - lastMoveX) / dt;
+    velocityY = (y - lastMoveY) / dt;
+  }
+  lastMoveX = x;
+  lastMoveY = y;
+  lastMoveTime = now;
+
+  dragCurrentX = x - dragStartX;
+  dragCurrentY = y - dragStartY;
 
   const dist = Math.sqrt(dragCurrentX * dragCurrentX + dragCurrentY * dragCurrentY);
   const maxDim = Math.max(window.innerWidth, window.innerHeight);
@@ -544,11 +605,12 @@ document.addEventListener('mousemove', (e) => {
 document.addEventListener('mouseup', () => {
   if (appState !== 'dragging') return;
 
-  if (dragCurrentY < -CLOSE_UP_PX) {
+  if (shouldClose()) {
     closeApp();
   } else {
     appState = 'open';
-    boxWeb.style.transition = 'all 0.35s cubic-bezier(0.2, 0, 0, 1)';
+    const curve = getSnapCurve();
+    boxWeb.style.transition = `all ${SNAP_MS}ms ${curve}`;
     boxWeb.style.transform = 'translate(0, 0) scale(1)';
     boxWeb.style.borderRadius = '0px';
     bgOverlay.style.opacity = '';
