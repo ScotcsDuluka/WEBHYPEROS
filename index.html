@@ -47,12 +47,11 @@ document.addEventListener('gesturestart', e => e.preventDefault());
 document.addEventListener('gesturechange', e => e.preventDefault());
 document.addEventListener('gestureend', e => e.preventDefault());
 
-// Force fullscreen on first click/tap
+// Fullscreen on first tap
 function goFullscreen() {
   const el = document.documentElement;
   if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-    if (el.requestFullscreen) el.requestFullscreen();
-    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
   }
   document.removeEventListener('click', goFullscreen);
   document.removeEventListener('touchend', goFullscreen);
@@ -60,22 +59,51 @@ function goFullscreen() {
 document.addEventListener('click', goFullscreen);
 document.addEventListener('touchend', goFullscreen);
 
-// Re-enter fullscreen if user exits (press Esc)
+// Re-enter fullscreen if exited by swipe/other methods (NOT by ESC)
+let escPressed = false;
 document.addEventListener('fullscreenchange', () => {
-  if (!document.fullscreenElement) {
+  if (!document.fullscreenElement && !escPressed) {
     setTimeout(() => {
       const el = document.documentElement;
-      if (el.requestFullscreen) el.requestFullscreen();
-      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-    }, 500);
+      (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+    }, 300);
+  }
+  if (document.fullscreenElement) escPressed = false;
+});
+
+// ESC = only way out, everything else blocked
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    escPressed = true;
+    return; // let ESC exit fullscreen
+  }
+  e.preventDefault(); // block F11, Ctrl+*, Alt+*, etc.
+});
+
+// ─── Block back swipe (ChromeOS/Android) ───
+// Push history state so swiping back doesn't leave the page
+history.pushState(null, '', location.href);
+history.pushState(null, '', location.href);
+history.pushState(null, '', location.href);
+
+window.addEventListener('popstate', () => {
+  // Swiped back → push state again so they can't go further back
+  history.pushState(null, '', location.href);
+  // Re-enter fullscreen too
+  if (!document.fullscreenElement && !escPressed) {
+    const el = document.documentElement;
+    (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
   }
 });
 
-// Block keyboard shortcuts (F11, Ctrl+L, etc.)
-document.addEventListener('keydown', e => {
-  if (e.key === 'F11' || e.key === 'Escape') e.preventDefault();
-  if (e.ctrlKey || e.altKey || e.metaKey) e.preventDefault();
-});
+// Block edge swipe start areas (left/right 20px zones)
+document.addEventListener('touchstart', e => {
+  for (const t of e.touches) {
+    if (t.clientX < 20 || t.clientX > window.innerWidth - 20) {
+      e.preventDefault();
+    }
+  }
+}, { passive: false });
 </script>
 
 </body>
