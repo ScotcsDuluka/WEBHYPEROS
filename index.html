@@ -83,6 +83,7 @@ img.wallpaper.blurred {
   width: 100%; height: 100%;
   display: none; transform-origin: 0 0;
   will-change: transform;
+  contain: layout paint;
 }
 .box-anim.passthrough { pointer-events: none; }
 .box-anim.z-closing { z-index: 21; }
@@ -92,8 +93,9 @@ img.wallpaper.blurred {
   width: 100%; height: 100%;
   z-index: 4; pointer-events: none;
   opacity: 0; overflow: hidden;
-  will-change: border-radius, opacity;
+  will-change: opacity;
   transition: none;
+  contain: layout paint style;
   display: flex; align-items: center; justify-content: center;
 }
 .icon-layer.visible { opacity: 1; }
@@ -114,7 +116,8 @@ img.wallpaper.blurred {
   position: absolute; top: 0; left: 0;
   width: 100%; height: 100%;
   background: #fff; overflow: hidden;
-  will-change: border-radius; z-index: 2;
+  contain: layout paint style;
+  z-index: 2;
 }
 .box-web iframe {
   width: 100%; height: 100%; border: none; display: block;
@@ -357,11 +360,22 @@ function openApp(iconEl, url) {
   const iconId = iconEl.id;
   const activeBox = findActiveBox();
   if (activeBox && activeBox.iconId === iconId) { closeBox(activeBox); return; }
+
+  // ★ เก็บตำแหน่ง closing box ไว้ก่อน reset — เพื่อต่อ animation
+  let resumeFrom = null;
+
   // ★ สลับแอปแบบ parallel: ปิดเก่าด้วย closeBox, เปิดใหม่ใน box ว่าง
   boxPool.forEach(b => {
     if (b.state === 'idle') return;
     if (b.state === 'opening' || b.state === 'open') { closeBox(b); }
-    else if (b.state === 'closing' && b.iconId === iconId) { forceResetBox(b); } // ★ แอปเดียวกัน → force reset ไม่งั้น icon ซ้ำ
+    else if (b.state === 'closing' && b.iconId === iconId) {
+      // ★ แอปเดียวกัน → เก็บตำแหน่งก่อน force reset
+      if (!resumeFrom) {
+        const rect = b.el.getBoundingClientRect();
+        resumeFrom = { tx: rect.left, ty: rect.top, sx: rect.width / innerWidth, sy: rect.height / innerHeight };
+      }
+      forceResetBox(b);
+    }
     else if (b.state === 'dragging') { forceResetBox(b); }
     // closing แอปอื่น → ปล่อยทำงานต่อ
   });
@@ -369,7 +383,14 @@ function openApp(iconEl, url) {
   // ★ ถ้าไม่มี idle box ให้ force reset closing box เก่าที่สุด
   if (!box) {
     const closingBoxes = boxPool.filter(b => b.state === 'closing');
-    if (closingBoxes.length > 0) forceResetBox(closingBoxes[0]);
+    if (closingBoxes.length > 0) {
+      const b = closingBoxes[0];
+      if (!resumeFrom) {
+        const rect = b.el.getBoundingClientRect();
+        resumeFrom = { tx: rect.left, ty: rect.top, sx: rect.width / innerWidth, sy: rect.height / innerHeight };
+      }
+      forceResetBox(b);
+    }
     box = findIdleBox();
   }
   if (!box) return;
@@ -388,28 +409,66 @@ function openApp(iconEl, url) {
   box.el.style.display = 'block';
   box.el.style.transition = 'none';
   box.web.style.transition = 'none';
-  box.el.style.transform = 'translate('+iconTf.tx+'px,'+iconTf.ty+'px) scale('+iconTf.sx+','+iconTf.sy+')';
+
+  // ★ ถ้ามี resumeFrom → เริ่มจากตำแหน่ง closing box (ต่อเนื่อง)
+  // ถ้าไม่มี → เริ่มจาก icon ปกติ
+  let fromTx, fromTy, fromSx, fromSy;
+  if (resumeFrom) {
+    fromTx = resumeFrom.tx;
+    fromTy = resumeFrom.ty;
+    fromSx = resumeFrom.sx;
+    fromSy = resumeFrom.sy;
+    box.el.style.transform = 'translate('+fromTx+'px,'+fromTy+'px) scale('+fromSx+','+fromSy+')';
+  } else {
+    fromTx = iconTf.tx;
+    fromTy = iconTf.ty;
+    fromSx = iconTf.sx;
+    fromSy = iconTf.sy;
+    box.el.style.transform = 'translate('+fromTx+'px,'+fromTy+'px) scale('+fromSx+','+fromSy+')';
+  }
+
   box.el.classList.remove('passthrough','z-closing');
   box.el.classList.add('z-open');
 
-  const startR = calcRadiusXY(1, iconTf.sx, iconTf.sy);
+  const startR = calcRadiusXY(1, fromSx, fromSy);
   box.iconLayer.style.borderRadius = startR;
-  box.iconLayer.classList.add('visible');
   box.web.style.borderRadius = startR;
-  box.web.style.background = 'transparent';
-  box.pill.style.opacity = '0';
+
+  // ★ ถ้า resumeFrom → กลับจาก closing, เนื้อหายังอยู่ ไม่ต้องแสดง icon-layer
+  if (resumeFrom) {
+    box.iconLayer.classList.remove('visible');
+    box.web.style.background = '#fff';
+    box.web.style.opacity = '1';
+    box.pill.style.opacity = '1';
+  } else {
+    box.iconLayer.classList.add('visible');
+    box.web.style.background = 'transparent';
+    box.pill.style.opacity = '0';
+  }
 
   box.frame.src = '';
   void box.el.offsetHeight;
 
   box.state = 'opening';
-  const fromTx=iconTf.tx, fromTy=iconTf.ty, fromSx=iconTf.sx, fromSy=iconTf.sy;
   let iconHidden = false;
-  // ★ Open animation: HyperOS จริง ~350ms + overshoot 50ms
-  // เร็ว>เร็ว>เร็ว>เด้งนิด(settle)>นุ่ม
-  const openDuration = 600; // ms
+  // ★ ถ้า resumeFrom (กลับจาก closing) → ลดเวลาตามสัดส่วนที่เหลือ
+  const fullOpenDuration = 600; // ms
+  const minScale = Math.min(fromSx, fromSy);
+  const iconMinScale = Math.min(iconTf.sx, iconTf.sy);
+  // คำนวณ progress ที่เท่ากับตำแหน่งปัจจุบัน (สัดส่วนจาก icon → fullscreen)
+  const resumeProgress = (minScale - iconMinScale) / (1 - iconMinScale);
+  const openDuration = resumeFrom
+    ? Math.max(150, Math.round(fullOpenDuration * (1 - resumeProgress)))
+    : fullOpenDuration;
   let lastOTs=null, openMs=0;
+  // ★ control point สำหรับโค้งขึ้นบนเบาๆ
+  // bezier ที่ t=0.5 จะเบี่ยงจากเส้นตรง = -0.25*fromTy + 0.5*cpTy
+  // ต้องการเบี่ยงขึ้นบนแค่ ~12px → cpTy = 0.5*fromTy - 24
+  const openCpTx = (fromTx + 0) / 2;
+  const openCpTy = (fromTy + 0) / 2 - 24;
 
+  // ★ cache ค่า border-radius ก่อนหน้า เพื่อไม่เขียน style ถ้าไม่เปลี่ยน
+  let prevCssR = '';
   function tickOpen(ts) {
     if (box.state !== 'opening') return;
     if (!lastOTs) lastOTs = ts;
@@ -417,35 +476,52 @@ function openApp(iconEl, url) {
     lastOTs = ts; openMs += frameMs;
     if (openMs >= openDuration) { finishOpen(); return; }
 
-    const et = EasingCurve.open(openMs / openDuration); // 0→~1.03→1.0 progress
+    const et = EasingCurve.open(openMs / openDuration);
 
-    // ★ overshoot: et อาจเกิน 1.0 นิด ทำให้ scale เกิน 1.0 → เด้ง
     const curSx = fromSx + (1-fromSx)*et;
     const curSy = fromSy + (1-fromSy)*et;
-    const curTx = fromTx*(1-et);
-    const curTy = fromTy*(1-et);
 
-    // ★ radius morphing: คำนวณจาก scale ตรง — ละเอียดทุกเฟรม
-    const radiusP = radiusFromScale(Math.min(curSx, curSy), fromSx);
-    const cssR = calcRadiusXY(radiusP, curSx, curSy);
-    box.web.style.borderRadius = cssR;
-    box.iconLayer.style.borderRadius = cssR;
+    // ★ quadratic bezier path: โค้งขึ้นบนเบาๆ
+    const u = 1 - et;
+    const curTx = u*u*fromTx + 2*u*et*openCpTx + et*et*0;
+    const curTy = u*u*fromTy + 2*u*et*openCpTy + et*et*0;
+
+    // ★ batch style writes — เขียน transform ก่อน (composite layer) แล้วค่อย border-radius (paint)
     box.el.style.transform = 'translate('+curTx+'px,'+curTy+'px) scale('+curSx+','+curSy+')';
 
-    // ★ fade icon-layer ออกเร็วขึ้น — HyperOS จริง icon หายเร็วมาก
-    if (!iconHidden && et > 0.04) {
-      iconHidden = true;
-      box.iconLayer.classList.remove('visible');
-      box.web.style.background = '#fff';
-      box.pill.style.opacity = '1';
+    // ★ radius morphing — เฉพาะเมื่อเปลี่ยนจากค่าก่อน
+    const cssR = calcRadiusXY(radiusFromScale(Math.min(curSx, curSy), iconTf.sx), curSx, curSy);
+    if (cssR !== prevCssR) {
+      prevCssR = cssR;
+      box.web.style.borderRadius = cssR;
+      box.iconLayer.style.borderRadius = cssR;
     }
-    // ★ fade web content: ซ่อนตอน icon visible, โชว์เร็วเมื่อ icon หาย
-    if (et < 0.04) {
-      box.web.style.opacity = '0';
-    } else if (et < 0.15) {
-      box.web.style.opacity = String((et - 0.04) / 0.11);
+
+    // ★ fade icon-layer ออกเร็วขึ้น — HyperOS จริง icon หายเร็วมาก
+    // ถ้า resumeFrom (กลับจาก closing) → icon หายไปแล้ว ไม่ต้องแสดง icon-layer
+    if (resumeFrom) {
+      if (!iconHidden) {
+        iconHidden = true;
+        box.iconLayer.classList.remove('visible');
+        box.web.style.background = '#fff';
+        box.web.style.opacity = '1';
+        box.pill.style.opacity = '1';
+      }
     } else {
-      box.web.style.opacity = '1';
+      if (!iconHidden && et > 0.04) {
+        iconHidden = true;
+        box.iconLayer.classList.remove('visible');
+        box.web.style.background = '#fff';
+        box.pill.style.opacity = '1';
+      }
+      // ★ fade web content: ซ่อนตอน icon visible, โชว์เร็วเมื่อ icon หาย
+      if (et < 0.04) {
+        box.web.style.opacity = '0';
+      } else if (et < 0.15) {
+        box.web.style.opacity = String((et - 0.04) / 0.11);
+      } else {
+        box.web.style.opacity = '1';
+      }
     }
 
     box.rafId = requestAnimationFrame(tickOpen);
@@ -518,7 +594,7 @@ function closeBox(box) {
   // ★ เปิดให้กด dock icon ได้ทันที
   if (box.iconId) enableDockIconClick(box.iconId);
 
-  let totalMs=0, lastTs=null, iconShown=false;
+  let totalMs=0, lastTs=null, iconShown=false, prevCloseR='';
 
   function tick(ts) {
     if (box.state !== 'closing') return;
@@ -541,8 +617,20 @@ function closeBox(box) {
     const curTy = u*u*startTy + 2*u*p*cpTy + p*p*tTy;
 
     const sizeProgress = Math.max(0, Math.min(1, (1-Math.min(clampSx,clampSy))/(1-Math.min(tSx,tSy))));
-    const radiusP = radiusFromScale(Math.min(clampSx, clampSy), Math.min(tSx,tSy));
-    const cssR = calcRadiusXY(radiusP, clampSx, clampSy);
+
+    // ★ clamp ไม่ให้เกินขอบจอ + เขียน transform ก่อน
+    const cBoxW = W * clampSx, cBoxH = H * clampSy;
+    const clampTx = Math.max(0, Math.min(curTx, W - cBoxW));
+    const clampTy = Math.max(0, Math.min(curTy, H - cBoxH));
+    box.el.style.transform = 'translate('+clampTx+'px,'+clampTy+'px) scale('+clampSx+','+clampSy+')';
+
+    // ★ border-radius — เฉพาะเมื่อเปลี่ยน
+    const cssR = calcRadiusXY(radiusFromScale(Math.min(clampSx, clampSy), Math.min(tSx,tSy)), clampSx, clampSy);
+    if (cssR !== prevCloseR) {
+      prevCloseR = cssR;
+      box.web.style.borderRadius = cssR;
+      if (iconShown) box.iconLayer.style.borderRadius = cssR;
+    }
 
     // ★ fade web ออก — คงไว้จนถึง 95% แล้วหายเร็ว
     const webOpacity = Math.max(0, 1 - Math.max(0, (sizeProgress - 0.95) / 0.05));
@@ -554,17 +642,8 @@ function closeBox(box) {
       box.iconLayer.classList.add('visible');
       box.web.style.background = 'transparent';
     }
-    if (iconShown) {
-      box.iconLayer.style.borderRadius = cssR;
-    }
 
     if (box.pill) box.pill.style.opacity = Math.max(0, 1-sizeProgress*2.5);
-    // ★ clamp ไม่ให้เกินขอบจอ
-    const cBoxW = W * clampSx, cBoxH = H * clampSy;
-    const clampTx = Math.max(0, Math.min(curTx, W - cBoxW));
-    const clampTy = Math.max(0, Math.min(curTy, H - cBoxH));
-    box.el.style.transform = 'translate('+clampTx+'px,'+clampTy+'px) scale('+clampSx+','+clampSy+')';
-    box.web.style.borderRadius = cssR;
 
     box.rafId = requestAnimationFrame(tick);
   }
@@ -644,16 +723,41 @@ function startDrag(ob, sx, sy) {
     ob.dragBaseTy = rect.top;
     ob.dragBaseSx = rect.width / innerWidth;
     ob.dragBaseSy = rect.height / innerHeight;
-    // ★ รีเซ็ต visual state ที่อาจค้างอยู่จาก opening animation
+    // ★ รีเซ็ต visual state ทั้งหมดที่อาจค้างอยู่จาก opening animation
     ob.web.style.opacity = '1';
     ob.web.style.background = '#fff';
+    ob.web.style.borderRadius = '16px';
     ob.iconLayer.classList.remove('visible');
+    ob.iconLayer.style.borderRadius = '';
     ob.pill.style.opacity = '1';
+    ob.wasOpening = true;
+    // ★ ขยาย dragBaseSx/Sy ไป 1.0 ระหว่าง drag — box ขยายต่อไปพร้อมตามมือ
+    ob._expandRaf = null;
+    ob._expandStart = performance.now();
+    ob._expandFromSx = ob.dragBaseSx;
+    ob._expandFromSy = ob.dragBaseSy;
+    ob._expandFromTx = ob.dragBaseTx;
+    ob._expandFromTy = ob.dragBaseTy;
+    const expandDur = 400; // ms ให้ขยายจนเต็ม
+    function tickExpand() {
+      if (ob.state !== 'dragging') { ob._expandRaf = null; return; }
+      const elapsed = performance.now() - ob._expandStart;
+      const t = Math.min(1, elapsed / expandDur);
+      const et = EasingCurve.open(t);
+      ob.dragBaseSx = ob._expandFromSx + (1 - ob._expandFromSx) * et;
+      ob.dragBaseSy = ob._expandFromSy + (1 - ob._expandFromSy) * et;
+      ob.dragBaseTx = ob._expandFromTx + (0 - ob._expandFromTx) * et;
+      ob.dragBaseTy = ob._expandFromTy + (0 - ob._expandFromTy) * et;
+      if (t < 1) ob._expandRaf = requestAnimationFrame(tickExpand);
+      else ob._expandRaf = null;
+    }
+    ob._expandRaf = requestAnimationFrame(tickExpand);
   } else {
     ob.dragBaseTx = 0;
     ob.dragBaseTy = 0;
     ob.dragBaseSx = 1;
     ob.dragBaseSy = 1;
+    ob.wasOpening = false;
   }
 
   ob.state = 'dragging'; ob.dragCurrentX=0; ob.dragCurrentY=0;
@@ -701,14 +805,21 @@ function moveDrag(x, y) {
 }
 function endDrag() {
   if (!activeDragBox || activeDragBox.state !== 'dragging') return;
+  // ★ หยุด expand animation ถ้ามี
+  if (activeDragBox._expandRaf) { cancelAnimationFrame(activeDragBox._expandRaf); activeDragBox._expandRaf = null; }
   if (shouldClose()) { closeBox(activeDragBox); }
   else {
     activeDragBox.state = 'open';
+    // ★ บังคับ browser เห็นตำแหน่งปัจจุบันก่อน แล้วค่อย transition
+    void activeDragBox.el.offsetHeight; // force reflow
     activeDragBox.el.style.transition='transform '+SNAP_MS+'ms cubic-bezier(0.32,0.72,0,1)';
-    activeDragBox.el.style.transform='none';
+    activeDragBox.el.style.transform='translate(0px,0px) scale(1,1)';
     activeDragBox.web.style.transition='border-radius '+SNAP_MS+'ms cubic-bezier(0.32,0.72,0,1)';
     activeDragBox.web.style.borderRadius='16px';
     activeDragBox.web.style.background='#fff';
+    activeDragBox.web.style.opacity='1';
+    activeDragBox.iconLayer.classList.remove('visible');
+    activeDragBox.iconLayer.style.borderRadius='';
     bgOverlay.style.opacity=''; bgOverlay.classList.add('active');
     dockWrap.classList.add('hidden');
     activeDragBox.dragCurrentX=0; activeDragBox.dragCurrentY=0;
