@@ -233,7 +233,10 @@ function applySticky(rawX,rawY) {
   if(ax>FX){const e=ax-FX; const c=FX+DX*(1-1/(1+e/DX)); sx=rawX>0?c:-c;}
   return {x:sx, y:sy};
 }
-function easeOutSmooth(t){return 1-Math.pow(1-t,2.8);}
+function easeOutSmooth(t){
+  // ★ ease-out ไม่เด้ง เริ่มเร็ว ค่อยช้าลง
+  return 1 - Math.pow(1 - t, 3);
+}
 function findOpenBox(){return boxPool.find(b=>b.state==='open')||null;}
 function findActiveBox(){return boxPool.find(b=>b.state==='open'||b.state==='opening'||b.state==='dragging')||null;}
 function findIdleBox(){return boxPool.find(b=>b.state==='idle')||null;}
