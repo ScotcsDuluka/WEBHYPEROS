@@ -214,13 +214,15 @@ function getIconTransform(r) {
   const sx=r.width/W, sy=r.height/H;
   return { tx: r.left+r.width/2-W*sx/2, ty: r.top+r.height/2-H*sy/2, sx, sy };
 }
-// ★ คำนวณ border-radius แบบละเอียดทุกมุม
+// ★ คำนวณ border-radius แบบละเอียดทุกมุม — sub-pixel TAA
 // p: 0=full-screen (R_FULL), 1=icon (R_ICON)
 // sx,sy: current scale
-// คืนค่า 8-value border-radius (มุมละค่า X/Y)
+// คืนค่า 8-value border-radius (มุมละค่า X/Y) ทศนิยม 2 ตำแหน่ง
 function calcRadiusXY(p,sx,sy) {
   const v=R_FULL*(1-p)+R_ICON*p;
-  const rx=v/Math.max(.001,sx), ry=v/Math.max(.001,sy);
+  // ★ sub-pixel: ใช้ toFixed(2) ให้ browser render ละเอียดขึ้น
+  const rx=(v/Math.max(.001,sx)).toFixed(2);
+  const ry=(v/Math.max(.001,sy)).toFixed(2);
   return rx+'px '+rx+'px '+rx+'px '+rx+'px / '+ry+'px '+ry+'px '+ry+'px '+ry+'px';
 }
 // ★ คำนวณ visual radius จาก scale ตรง — ไม่ใช้ power function
@@ -230,9 +232,9 @@ function calcRadiusXY(p,sx,sy) {
 function radiusFromScale(minScale, iconScale) {
   if (minScale >= 1.0) return 0;
   if (minScale <= iconScale) return 1;
-  // smooth step แทน linear — ให้ radius เปลี่ยนนุ่มขึ้นตรงกลาง
+  // ★ quintic smooth step ( smoother than cubic ) — เหมือน TAA
   const t = (1 - minScale) / (1 - iconScale); // 0 at full, 1 at icon
-  return t * t * (3 - 2 * t); // smoothstep
+  return t * t * t * (t * (t * 6 - 15) + 10); // quintic smootherstep
 }
 function calcRadius(p,s) {
   const v=R_FULL*(1-p)+R_ICON*p;
