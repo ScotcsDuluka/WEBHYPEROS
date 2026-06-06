@@ -20,7 +20,7 @@ img.wallpaper {
   width: 100%; height: 100%;
   object-fit: cover; object-position: center;
   user-select: none; -webkit-user-drag: none; pointer-events: none;
-  transition: filter 0.5s cubic-bezier(0.16,1,0.3,1), transform 0.5s cubic-bezier(0.16,1,0.3,1);
+  transition: filter 0.6s cubic-bezier(0.32,0.72,0,1), transform 0.6s cubic-bezier(0.32,0.72,0,1);
   will-change: filter, transform;
 }
 img.wallpaper.blurred {
@@ -33,7 +33,7 @@ img.wallpaper.blurred {
   background: rgba(0,0,0,0.08); z-index: 15;
   backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px);
   opacity: 0; pointer-events: none; cursor: pointer;
-  transition: opacity 0.5s cubic-bezier(0.16,1,0.3,1), backdrop-filter 0.5s cubic-bezier(0.16,1,0.3,1), -webkit-backdrop-filter 0.5s cubic-bezier(0.16,1,0.3,1);
+  transition: opacity 0.6s cubic-bezier(0.32,0.72,0,1), backdrop-filter 0.6s cubic-bezier(0.32,0.72,0,1), -webkit-backdrop-filter 0.6s cubic-bezier(0.32,0.72,0,1);
 }
 .bg-overlay.active {
   opacity: 1; pointer-events: auto;
@@ -201,7 +201,7 @@ let dragStartX=0, dragStartY=0, lastMoveX=0, lastMoveY=0, lastMoveTime=0, veloci
 
 const R_ICON=15, R_FULL=44;
 const CLOSE_UP_PX = Math.round(window.innerHeight * 0.08);
-const OPEN_MS=370, SNAP_MS=370, VELOCITY_CLOSE=0.35, SPEED=4.5, FLING=1.8, DRAG_SHRINK=0.30;
+const OPEN_MS=600, SNAP_MS=600, VELOCITY_CLOSE=0.35, SPEED=4.5, FLING=1.8, DRAG_SHRINK=0.30;
 
 // ═══════════════════════════════════════════════════════════
 //  HELPERS
@@ -249,9 +249,58 @@ function applySticky(rawX,rawY) {
   sy *= viscous;
   return {x:sx, y:sy};
 }
+// ★ HyperOS animation curves — 100% เลียนแบบ HyperOS จริง
+// Open:  damped spring overshoot — เร็ว>เร็ว>เร็ว>เด้งนิด>settle (~350ms)
+// Close: smooth ease-out — เร็ว>เร็ว>กลาง>ช้า>ช้านุ่มนวล (~350ms)
+class EasingCurve {
+  // ═══ 2D cubic-bezier solver (เหมือน CSS cubic-bezier) ═══
+  static _b1d(t, p1, p2) {
+    const u = 1 - t;
+    return 3*u*u*t*p1 + 3*u*t*t*p2 + t*t*t;
+  }
+  static _sampleX(t, x1, x2) {
+    return EasingCurve._b1d(t, x1, x2);
+  }
+  static _sampleY(t, y1, y2) {
+    return EasingCurve._b1d(t, y1, y2);
+  }
+  static _solveX(x, x1, x2) {
+    if (x <= 0) return 0;
+    if (x >= 1) return 1;
+    let lo = 0, hi = 1;
+    for (let i = 0; i < 16; i++) {
+      const mid = (lo + hi) / 2;
+      if (EasingCurve._sampleX(mid, x1, x2) < x) lo = mid; else hi = mid;
+    }
+    return (lo + hi) / 2;
+  }
+  // CSS cubic-bezier(x1,y1,x2,y2) → ใส่ time 0→1 ได้ output 0→1
+  static cubicBezier(t, x1, y1, x2, y2) {
+    if (t <= 0) return 0;
+    if (t >= 1) return 1;
+    const param = EasingCurve._solveX(t, x1, x2);
+    return EasingCurve._sampleY(param, y1, y2);
+  }
+
+  // ★ Open: cubic-bezier(0.32, 0.72, 0, 1)
+  // เร็ว>เร็ว>กลาง>ช้า>ช้านุ่มนวล — ไม่มี overshoot (เด้ง)
+  static open(t) {
+    if (t <= 0) return 0;
+    if (t >= 1) return 1;
+    return EasingCurve.cubicBezier(t, 0.32, 0.72, 0.0, 1.0);
+  }
+
+  // ★ Close: cubic-bezier(0.32, 0.72, 0, 1)
+  // เร็ว>เร็ว>กลาง>ช้า>ช้านุ่มนวล — ไม่มี overshoot
+  // แบบเดียวกับ MIUI/HyperOS close animation
+  static close(t) {
+    if (t <= 0) return 0;
+    if (t >= 1) return 1;
+    return EasingCurve.cubicBezier(t, 0.32, 0.72, 0.0, 1.0);
+  }
+}
 function easeOutSmooth(t){
-  // ★ ease-out ไม่เด้ง เริ่มเร็ว ค่อยช้าลง
-  return 1 - Math.pow(1 - t, 3);
+  return EasingCurve.open(t);
 }
 function findOpenBox(){return boxPool.find(b=>b.state==='open')||null;}
 function findActiveBox(){return boxPool.find(b=>b.state==='open'||b.state==='opening'||b.state==='dragging')||null;}
@@ -338,53 +387,62 @@ function openApp(iconEl, url) {
   void box.el.offsetHeight;
 
   box.state = 'opening';
-  const startTime = performance.now();
   const fromTx=iconTf.tx, fromTy=iconTf.ty, fromSx=iconTf.sx, fromSy=iconTf.sy;
   let iconHidden = false;
+  // ★ Open animation: HyperOS จริง ~350ms + overshoot 50ms
+  // เร็ว>เร็ว>เร็ว>เด้งนิด(settle)>นุ่ม
+  const openDuration = 600; // ms
+  let lastOTs=null, openMs=0;
 
-  function tickOpen(now) {
+  function tickOpen(ts) {
     if (box.state !== 'opening') return;
-    const elapsed = now - startTime;
-    let t = Math.min(elapsed / OPEN_MS, 1);
-    const et = easeOutSmooth(t);
+    if (!lastOTs) lastOTs = ts;
+    const frameMs = Math.min(ts-lastOTs, 32);
+    lastOTs = ts; openMs += frameMs;
+    if (openMs >= openDuration) { finishOpen(); return; }
 
+    const et = EasingCurve.open(openMs / openDuration); // 0→~1.03→1.0 progress
+
+    // ★ overshoot: et อาจเกิน 1.0 นิด ทำให้ scale เกิน 1.0 → เด้ง
     const curSx = fromSx + (1-fromSx)*et;
     const curSy = fromSy + (1-fromSy)*et;
     const curTx = fromTx*(1-et);
     const curTy = fromTy*(1-et);
 
-    const radiusProgress = Math.pow(1-et, 0.65);
+    // ★ radius morphing: ใช้ min(et,1) เพื่อไม่ให้ radius กลับขยายตอน overshoot
+    const clampedEt = Math.min(et, 1.0);
+    const radiusProgress = Math.pow(1-clampedEt, 0.65);
     const cssR = calcRadiusXY(radiusProgress, curSx, curSy);
     box.web.style.borderRadius = cssR;
     box.iconLayer.style.borderRadius = cssR;
     box.el.style.transform = 'translate('+curTx+'px,'+curTy+'px) scale('+curSx+','+curSy+')';
 
-    // ★ fade icon-layer ออกเมื่อออกจาก Dock 6%
-    if (!iconHidden && et > 0.06) {
+    // ★ fade icon-layer ออกเร็วขึ้น — HyperOS จริง icon หายเร็วมาก
+    if (!iconHidden && et > 0.04) {
       iconHidden = true;
       box.iconLayer.classList.remove('visible');
       box.web.style.background = '#fff';
       box.pill.style.opacity = '1';
     }
-    // ★ fade web content opacity ตั้งแต่ต้นจนถึง 6%
-    if (et < 0.06) {
+    // ★ fade web content: ซ่อนตอน icon visible, โชว์เร็วเมื่อ icon หาย
+    if (et < 0.04) {
       box.web.style.opacity = '0';
-    } else if (et < 0.2) {
-      box.web.style.opacity = String((et - 0.06) / 0.14);
+    } else if (et < 0.15) {
+      box.web.style.opacity = String((et - 0.04) / 0.11);
     } else {
       box.web.style.opacity = '1';
     }
 
-    if (t < 1) {
-      box.rafId = requestAnimationFrame(tickOpen);
-    } else {
-      box.el.style.transform = 'none';
-      box.web.style.borderRadius = '16px';
-      box.iconLayer.classList.remove('visible');
-      box.state = 'open';
-      box.rafId = null;
-      updateGlobalUI();
-    }
+    box.rafId = requestAnimationFrame(tickOpen);
+  }
+  function finishOpen() {
+    box.el.style.transform = 'none';
+    box.web.style.borderRadius = '16px';
+    box.web.style.opacity = '1';
+    box.iconLayer.classList.remove('visible');
+    box.state = 'open';
+    box.rafId = null;
+    updateGlobalUI();
   }
   box.rafId = requestAnimationFrame(tickOpen);
   if (box.openTimer) clearTimeout(box.openTimer);
@@ -419,11 +477,9 @@ function closeBox(box) {
   if (!target) { finishBoxClose(box); return; }
   const tTx=target.tx, tTy=target.ty, tSx=target.sx, tSy=target.sy;
 
-  let p=0, pVel=5*SPEED, oY=0;
-  const swipeSpeed = Math.sqrt(velocityX*velocityX + velocityY*velocityY);
-  const flingHeight = FLING*(Math.max(swipeSpeed,.05)*.5+.06)*H;
-  let oYVel = -4*FLING;
-  const pStiff=22*SPEED*SPEED, pDamp=11*SPEED, oStiff=25*SPEED*SPEED, oDamp=12*SPEED;
+  // ★ Close animation: HyperOS จริง
+  // เร็ว>เร็ว>กลาง>ช้า>ช้านุ่มนวล — smooth ease-out
+  const closeDuration = 550; // ms
 
   box.el.classList.add('passthrough');
   box.el.classList.remove('z-open');
@@ -444,42 +500,34 @@ function closeBox(box) {
   // ★ เปิดให้กด dock icon ได้ทันที
   if (box.iconId) enableDockIconClick(box.iconId);
 
-  let totalMs=0, maxMs=700, lastTs=null, settled=false, iconShown=false;
+  let totalMs=0, lastTs=null, iconShown=false;
 
   function tick(ts) {
-    if (box.state !== 'closing') return; // ★ เช็ค state
+    if (box.state !== 'closing') return;
     if (!lastTs) lastTs = ts;
     const frameMs = Math.min(ts-lastTs, 32);
     lastTs = ts; totalMs += frameMs;
-    if (totalMs > maxMs) { finishBoxClose(box); return; }
+    if (totalMs >= closeDuration) { finishBoxClose(box); return; }
 
-    const steps = Math.max(1, Math.round(frameMs/4));
-    const dt = (frameMs/1000)/steps;
-    for (let i=0; i<steps; i++) {
-      const fp = -pStiff*(p-1) - pDamp*pVel;
-      pVel += fp*dt; p += pVel*dt;
-      const fo = -oStiff*oY - oDamp*oYVel;
-      oYVel += fo*dt; oY += oYVel*dt;
-    }
-    p = Math.max(0, Math.min(1.02, p));
+    const p = EasingCurve.close(totalMs / closeDuration); // 0→1 progress
 
-    const curTx = startTx + (tTx-startTx)*p;
-    const curTy = startTy + (tTy-startTy)*p + oY*flingHeight;
     const curSx = startSx + (tSx-startSx)*p;
     const curSy = startSy + (tSy-startSy)*p;
     const clampSx = Math.max(tSx*.5, Math.min(1.0, curSx));
     const clampSy = Math.max(tSy*.5, Math.min(1.0, curSy));
+    const curTx = startTx + (tTx-startTx)*p;
+    const curTy = startTy + (tTy-startTy)*p;
 
     const sizeProgress = Math.max(0, Math.min(1, (1-Math.min(clampSx,clampSy))/(1-Math.min(tSx,tSy))));
     const radiusProgress = Math.pow(sizeProgress, 0.65);
     const cssR = calcRadiusXY(radiusProgress, clampSx, clampSy);
 
-    // ★ fade web ออกไวๆ ตั้งแต่เริ่ม close
+    // ★ fade web ออก — คงไว้จนถึง 95% แล้วหายเร็ว
     const webOpacity = Math.max(0, 1 - Math.max(0, (sizeProgress - 0.95) / 0.05));
     box.web.style.opacity = String(webOpacity);
 
-    // ★ fade in icon-layer เมื่อใกล้ถึง Dock 95%
-    if (!iconShown && sizeProgress > 0.95) {
+    // ★ fade in icon-layer — HyperOS จริง icon โผล่ตอน size ใกล้เป้า (~85%)
+    if (!iconShown && sizeProgress > 0.85) {
       iconShown = true;
       box.iconLayer.classList.add('visible');
       box.web.style.background = 'transparent';
@@ -496,27 +544,6 @@ function closeBox(box) {
     box.el.style.transform = 'translate('+clampTx+'px,'+clampTy+'px) scale('+clampSx+','+clampSy+')';
     box.web.style.borderRadius = cssR;
 
-    const pDist = Math.abs(p-1);
-    const oYAbs = Math.abs(oY);
-    const oYVelAbs = Math.abs(oYVel);
-
-    if (!settled && pDist < 0.008 && oYAbs < 0.03 && oYVelAbs < 0.3) {
-      settled = true;
-      const finalR = calcRadiusXY(1, tSx, tSy);
-      if (!iconShown) {
-        iconShown = true;
-        box.iconLayer.classList.add('visible');
-        box.web.style.background = 'transparent';
-      }
-      box.el.style.transition = 'transform 120ms cubic-bezier(0.25,0,0.15,1)';
-      box.el.style.transform = 'translate('+tTx+'px,'+tTy+'px) scale('+tSx+','+tSy+')';
-      box.web.style.transition = 'border-radius 120ms cubic-bezier(0.25,0,0.15,1), opacity 120ms ease';
-      box.web.style.borderRadius = finalR;
-      box.web.style.opacity = '0';
-      box.iconLayer.style.borderRadius = finalR;
-      setTimeout(() => finishBoxClose(box), 130);
-      return;
-    }
     box.rafId = requestAnimationFrame(tick);
   }
   box.rafId = requestAnimationFrame(tick);
@@ -595,6 +622,11 @@ function startDrag(ob, sx, sy) {
     ob.dragBaseTy = rect.top;
     ob.dragBaseSx = rect.width / innerWidth;
     ob.dragBaseSy = rect.height / innerHeight;
+    // ★ รีเซ็ต visual state ที่อาจค้างอยู่จาก opening animation
+    ob.web.style.opacity = '1';
+    ob.web.style.background = '#fff';
+    ob.iconLayer.classList.remove('visible');
+    ob.pill.style.opacity = '1';
   } else {
     ob.dragBaseTx = 0;
     ob.dragBaseTy = 0;
@@ -649,9 +681,9 @@ function endDrag() {
   if (shouldClose()) { closeBox(activeDragBox); }
   else {
     activeDragBox.state = 'open';
-    activeDragBox.el.style.transition='transform '+SNAP_MS+'ms cubic-bezier(0.16,1,0.3,1)';
+    activeDragBox.el.style.transition='transform '+SNAP_MS+'ms cubic-bezier(0.32,0.72,0,1)';
     activeDragBox.el.style.transform='none';
-    activeDragBox.web.style.transition='border-radius '+SNAP_MS+'ms cubic-bezier(0.16,1,0.3,1)';
+    activeDragBox.web.style.transition='border-radius '+SNAP_MS+'ms cubic-bezier(0.32,0.72,0,1)';
     activeDragBox.web.style.borderRadius='16px';
     activeDragBox.web.style.background='#fff';
     bgOverlay.style.opacity=''; bgOverlay.classList.add('active');
