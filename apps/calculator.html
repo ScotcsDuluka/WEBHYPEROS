@@ -1,0 +1,54 @@
+<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,"SF Pro Display","Noto Sans SC",system-ui,sans-serif;background:#000;color:#fff;-webkit-user-select:none;user-select:none;overflow:hidden;height:100vh;display:flex;flex-direction:column}
+.display{flex:1;display:flex;flex-direction:column;justify-content:flex-end;padding:20px 24px;min-height:0}
+.display .expr{font-size:18px;color:rgba(255,255,255,0.4);text-align:right;min-height:24px;word-break:break-all}
+.display .result{font-size:56px;font-weight:200;text-align:right;line-height:1.1;margin-top:8px;word-break:break-all;transition:font-size 0.15s}
+.keypad{padding:8px 12px 24px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.key{height:62px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:400;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background 0.1s}
+.key:active{filter:brightness(1.3)}
+.key.num{background:#333;color:#fff}
+.key.op{background:#ff9500;color:#fff;font-size:30px}
+.key.op.active-op{background:#fff;color:#ff9500}
+.key.func{background:#a5a5a5;color:#000;font-size:20px}
+.key.zero{border-radius:62px;grid-column:span 2;justify-content:flex-start;padding-left:26px}
+</style></head><body>
+<div class="display">
+  <div class="expr" id="expr"></div>
+  <div class="result" id="result">0</div>
+</div>
+<div class="keypad">
+  <div class="key func" onclick="clearAll()">AC</div>
+  <div class="key func" onclick="toggleSign()">+/-</div>
+  <div class="key func" onclick="percent()">%</div>
+  <div class="key op" onclick="setOp('/')">÷</div>
+  <div class="key num" onclick="addDigit('7')">7</div>
+  <div class="key num" onclick="addDigit('8')">8</div>
+  <div class="key num" onclick="addDigit('9')">9</div>
+  <div class="key op" onclick="setOp('*')">×</div>
+  <div class="key num" onclick="addDigit('4')">4</div>
+  <div class="key num" onclick="addDigit('5')">5</div>
+  <div class="key num" onclick="addDigit('6')">6</div>
+  <div class="key op" onclick="setOp('-')">−</div>
+  <div class="key num" onclick="addDigit('1')">1</div>
+  <div class="key num" onclick="addDigit('2')">2</div>
+  <div class="key num" onclick="addDigit('3')">3</div>
+  <div class="key op" onclick="setOp('+')">+</div>
+  <div class="key num zero" onclick="addDigit('0')">0</div>
+  <div class="key num" onclick="addDot()">.</div>
+  <div class="key op" onclick="calculate()">=</div>
+</div>
+<script>
+var cur='0',prev='',op='',reset=false;
+var rEl=document.getElementById('result'),eEl=document.getElementById('expr');
+function show(){rEl.textContent=cur;if(cur.length>9)rEl.style.fontSize='36px';else rEl.style.fontSize='56px'}
+function addDigit(d){if(reset){cur='0';reset=false}if(cur==='0'&&d!=='.')cur=d;else if(cur.length<12)cur+=d;show()}
+function addDot(){if(reset){cur='0';reset=false}if(!cur.includes('.'))cur+='.';show()}
+function setOp(o){if(op&&!reset)calculate();prev=cur;op=o;reset=true;eEl.textContent=prev+' '+{'/' :'÷','*':'×','-':'−','+':'+'}[o];document.querySelectorAll('.key.op').forEach(function(k){k.classList.remove('active-op')});event.target.classList.add('active-op')}
+function calculate(){if(!op||!prev)return;var a=parseFloat(prev),b=parseFloat(cur),r=0;if(op==='+')r=a+b;else if(op==='-')r=a-b;else if(op==='*')r=a*b;else if(op==='/')r=b!==0?a/b:0;eEl.textContent=prev+' '+{'/' :'÷','*':'×','-':'−','+':'+'}[op]+' '+cur+' =';cur=parseFloat(r.toPrecision(10)).toString();op='';prev='';reset=true;show();document.querySelectorAll('.key.op').forEach(function(k){k.classList.remove('active-op')})}
+function clearAll(){cur='0';prev='';op='';reset=false;eEl.textContent='';show();document.querySelectorAll('.key.op').forEach(function(k){k.classList.remove('active-op')})}
+function toggleSign(){cur=(parseFloat(cur)*-1).toString();show()}
+function percent(){cur=(parseFloat(cur)/100).toString();show()}
+</script>
+</body></html>
