@@ -467,19 +467,19 @@ function closeBox(box) {
     const curTy = startTy + (tTy-startTy)*p + oY*flingHeight;
     const curSx = startSx + (tSx-startSx)*p;
     const curSy = startSy + (tSy-startSy)*p;
-    const clampSx = Math.max(tSx*.5, Math.min(1.1, curSx));
-    const clampSy = Math.max(tSy*.5, Math.min(1.1, curSy));
+    const clampSx = Math.max(tSx*.5, Math.min(1.0, curSx));
+    const clampSy = Math.max(tSy*.5, Math.min(1.0, curSy));
 
     const sizeProgress = Math.max(0, Math.min(1, (1-Math.min(clampSx,clampSy))/(1-Math.min(tSx,tSy))));
     const radiusProgress = Math.pow(sizeProgress, 0.65);
     const cssR = calcRadiusXY(radiusProgress, clampSx, clampSy);
 
     // ★ fade web ออกไวๆ ตั้งแต่เริ่ม close
-    const webOpacity = Math.max(0, 1 - sizeProgress * 2.5);
+    const webOpacity = Math.max(0, 1 - Math.max(0, (sizeProgress - 0.95) / 0.05));
     box.web.style.opacity = String(webOpacity);
 
-    // ★ fade in icon-layer เร็วขึ้น sizeProgress > 0.25
-    if (!iconShown && sizeProgress > 0.25) {
+    // ★ fade in icon-layer เมื่อใกล้ถึง Dock 95%
+    if (!iconShown && sizeProgress > 0.95) {
       iconShown = true;
       box.iconLayer.classList.add('visible');
       box.web.style.background = 'transparent';
@@ -489,7 +489,11 @@ function closeBox(box) {
     }
 
     if (box.pill) box.pill.style.opacity = Math.max(0, 1-sizeProgress*2.5);
-    box.el.style.transform = 'translate('+curTx+'px,'+curTy+'px) scale('+clampSx+','+clampSy+')';
+    // ★ clamp ไม่ให้เกินขอบจอ
+    const cBoxW = W * clampSx, cBoxH = H * clampSy;
+    const clampTx = Math.max(0, Math.min(curTx, W - cBoxW));
+    const clampTy = Math.max(0, Math.min(curTy, H - cBoxH));
+    box.el.style.transform = 'translate('+clampTx+'px,'+clampTy+'px) scale('+clampSx+','+clampSy+')';
     box.web.style.borderRadius = cssR;
 
     const pDist = Math.abs(p-1);
@@ -631,7 +635,11 @@ function moveDrag(x, y) {
   // ชดเชย: เมื่อ scale ลด ขอบล่าง/ขวาจะหดเข้า → ดึงกลับให้กลางเฟรม
   const halfW = innerWidth / 2 * (1 - dragScale);
   const halfH = innerHeight / 2 * (1 - dragScale);
-  activeDragBox.el.style.transform='translate('+(curTx+halfW)+'px,'+(curTy+halfH)+'px) scale('+curSx+','+curSy+')';
+  // ★ clamp ไม่ให้เกินขอบจอ
+  const boxW = innerWidth * curSx, boxH = innerHeight * curSy;
+  let finalX = Math.max(0, Math.min(curTx + halfW, innerWidth - boxW));
+  let finalY = Math.max(0, Math.min(curTy + halfH, innerHeight - boxH));
+  activeDragBox.el.style.transform='translate('+finalX+'px,'+finalY+'px) scale('+curSx+','+curSy+')';
   activeDragBox.web.style.borderRadius=calcRadiusXY(progress,curSx,curSy);
   bgOverlay.style.opacity=Math.max(0,1-progress*2);
   if(activeDragBox.pill) activeDragBox.pill.style.opacity=Math.max(0,1-progress*3);
