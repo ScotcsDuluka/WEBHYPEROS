@@ -287,7 +287,7 @@ function shouldClose() {
 
 function applySticky(rawX, rawY) {
   const H = window.innerHeight, W = window.innerWidth;
-  const FREE_ZONE_Y = H * 0.40, DIM_Y = H * 0.2;
+  const FREE_ZONE_Y = H * 0.80, DIM_Y = H * 0.2;
   let sy = rawY;
   if (rawY < 0) {
     const absY = Math.abs(rawY);
