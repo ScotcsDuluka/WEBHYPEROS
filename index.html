@@ -211,9 +211,25 @@ function getIconTransform(r) {
   const sx=r.width/W, sy=r.height/H;
   return { tx: r.left+r.width/2-W*sx/2, ty: r.top+r.height/2-H*sy/2, sx, sy };
 }
+// ★ คำนวณ border-radius แบบละเอียดทุกมุม
+// p: 0=full-screen (R_FULL), 1=icon (R_ICON)
+// sx,sy: current scale
+// คืนค่า 8-value border-radius (มุมละค่า X/Y)
 function calcRadiusXY(p,sx,sy) {
   const v=R_FULL*(1-p)+R_ICON*p;
-  return (v/Math.max(.01,sx))+'px / '+(v/Math.max(.01,sy))+'px';
+  const rx=v/Math.max(.001,sx), ry=v/Math.max(.001,sy);
+  return rx+'px '+rx+'px '+rx+'px '+rx+'px / '+ry+'px '+ry+'px '+ry+'px '+ry+'px';
+}
+// ★ คำนวณ visual radius จาก scale ตรง — ไม่ใช้ power function
+// minScale: สเกลปัจจุบัน (0.07=icon, 1.0=full)
+// iconScale: สเกลของ icon (ตัวหมาย)
+// คืนค่า p: 0=full-screen, 1=icon
+function radiusFromScale(minScale, iconScale) {
+  if (minScale >= 1.0) return 0;
+  if (minScale <= iconScale) return 1;
+  // smooth step แทน linear — ให้ radius เปลี่ยนนุ่มขึ้นตรงกลาง
+  const t = (1 - minScale) / (1 - iconScale); // 0 at full, 1 at icon
+  return t * t * (3 - 2 * t); // smoothstep
 }
 function calcRadius(p,s) {
   const v=R_FULL*(1-p)+R_ICON*p;
@@ -409,10 +425,9 @@ function openApp(iconEl, url) {
     const curTx = fromTx*(1-et);
     const curTy = fromTy*(1-et);
 
-    // ★ radius morphing: ใช้ min(et,1) เพื่อไม่ให้ radius กลับขยายตอน overshoot
-    const clampedEt = Math.min(et, 1.0);
-    const radiusProgress = Math.pow(1-clampedEt, 0.65);
-    const cssR = calcRadiusXY(radiusProgress, curSx, curSy);
+    // ★ radius morphing: คำนวณจาก scale ตรง — ละเอียดทุกเฟรม
+    const radiusP = radiusFromScale(Math.min(curSx, curSy), fromSx);
+    const cssR = calcRadiusXY(radiusP, curSx, curSy);
     box.web.style.borderRadius = cssR;
     box.iconLayer.style.borderRadius = cssR;
     box.el.style.transform = 'translate('+curTx+'px,'+curTy+'px) scale('+curSx+','+curSy+')';
@@ -477,9 +492,12 @@ function closeBox(box) {
   if (!target) { finishBoxClose(box); return; }
   const tTx=target.tx, tTy=target.ty, tSx=target.sx, tSy=target.sy;
 
-  // ★ Close animation: HyperOS จริง
-  // เร็ว>เร็ว>กลาง>ช้า>ช้านุ่มนวล — smooth ease-out
+  // ★ Close animation: เส้นโค้งขึ้นข้างบน (ดึงขึ้นเวี่ยง)
+  // เส้นทางเป็น quadratic bezier: start → ข้างบน → icon
   const closeDuration = 550; // ms
+  // control point = ชดเชยขึ้นข้างบน — ยิ่งค่าติดลบยิ่งโค้งขึ้นสูง
+  const cpTx = (startTx + tTx) / 2;
+  const cpTy = Math.min(startTy, tTy) - H * 0.15;
 
   box.el.classList.add('passthrough');
   box.el.classList.remove('z-open');
@@ -515,18 +533,22 @@ function closeBox(box) {
     const curSy = startSy + (tSy-startSy)*p;
     const clampSx = Math.max(tSx*.5, Math.min(1.0, curSx));
     const clampSy = Math.max(tSy*.5, Math.min(1.0, curSy));
-    const curTx = startTx + (tTx-startTx)*p;
-    const curTy = startTy + (tTy-startTy)*p;
+
+    // ★ quadratic bezier path: โค้งผ่านตรงกลางจอ
+    // B(t) = (1-t)²·P0 + 2(1-t)t·P1 + t²·P2
+    const u = 1 - p;
+    const curTx = u*u*startTx + 2*u*p*cpTx + p*p*tTx;
+    const curTy = u*u*startTy + 2*u*p*cpTy + p*p*tTy;
 
     const sizeProgress = Math.max(0, Math.min(1, (1-Math.min(clampSx,clampSy))/(1-Math.min(tSx,tSy))));
-    const radiusProgress = Math.pow(sizeProgress, 0.65);
-    const cssR = calcRadiusXY(radiusProgress, clampSx, clampSy);
+    const radiusP = radiusFromScale(Math.min(clampSx, clampSy), Math.min(tSx,tSy));
+    const cssR = calcRadiusXY(radiusP, clampSx, clampSy);
 
     // ★ fade web ออก — คงไว้จนถึง 95% แล้วหายเร็ว
     const webOpacity = Math.max(0, 1 - Math.max(0, (sizeProgress - 0.95) / 0.05));
     box.web.style.opacity = String(webOpacity);
 
-    // ★ fade in icon-layer — HyperOS จริง icon โผล่ตอน size ใกล้เป้า (~85%)
+    // ★ fade in icon-layer — icon โผล่ตอน size ใกล้เป้า (~85%)
     if (!iconShown && sizeProgress > 0.85) {
       iconShown = true;
       box.iconLayer.classList.add('visible');
@@ -672,7 +694,8 @@ function moveDrag(x, y) {
   let finalX = Math.max(0, Math.min(curTx + halfW, innerWidth - boxW));
   let finalY = Math.max(0, Math.min(curTy + halfH, innerHeight - boxH));
   activeDragBox.el.style.transform='translate('+finalX+'px,'+finalY+'px) scale('+curSx+','+curSy+')';
-  activeDragBox.web.style.borderRadius=calcRadiusXY(progress,curSx,curSy);
+  const dragRadiusP = radiusFromScale(Math.min(curSx, curSy), 0.07);
+  activeDragBox.web.style.borderRadius=calcRadiusXY(dragRadiusP,curSx,curSy);
   bgOverlay.style.opacity=Math.max(0,1-progress*2);
   if(activeDragBox.pill) activeDragBox.pill.style.opacity=Math.max(0,1-progress*3);
 }
