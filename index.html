@@ -23,9 +23,17 @@ img.wallpaper {
   transition: filter 0.6s cubic-bezier(0.32,0.72,0,1), transform 0.6s cubic-bezier(0.32,0.72,0,1);
   will-change: filter, transform;
 }
-img.wallpaper.blurred {
+img.wallpaper.blurred, video.wallpaper.blurred {
   filter: brightness(0.75) saturate(1.1);
   transform: scale(1.18);
+}
+video.wallpaper {
+  position: fixed; top: 0; left: 0;
+  width: 100%; height: 100%;
+  object-fit: cover; object-position: center;
+  user-select: none; -webkit-user-drag: none; pointer-events: none;
+  transition: filter 0.6s cubic-bezier(0.32,0.72,0,1), transform 0.6s cubic-bezier(0.32,0.72,0,1);
+  will-change: filter, transform;
 }
 .bg-overlay {
   position: fixed; top: 0; left: 0;
@@ -142,7 +150,9 @@ img.wallpaper.blurred {
 </style>
 </head>
 <body>
-<img class="wallpaper" src="https://mir-s3-cdn-cf.behance.net/project_modules/1400_webp/4b5d40216256937.67b492e0e7551.jpg" alt="">
+<img class="wallpaper" id="wallpaperImg" src="" alt="">
+<video class="wallpaper" id="wallpaperVideo" src="" autoplay loop muted playsinline style="display:none"></video>
+<input type="file" id="wallpaperInput" accept="image/*,video/mp4,video/webm" style="display:none">
 <div class="bg-overlay" id="bgOverlay"></div>
 <div class="box-anim z-open" id="boxAnim0">
   <div class="icon-layer" id="iconLayer0"></div>
@@ -165,6 +175,289 @@ img.wallpaper.blurred {
   </div>
 </div>
 <script>
+// ═══════════════════════════════════════════════════════════
+//  SETTINGS SYSTEM — localStorage + IndexedDB persistence
+// ═══════════════════════════════════════════════════════════
+const DEFAULT_WALLPAPER = 'https://mir-s3-cdn-cf.behance.net/project_modules/1400_webp/4b5d40216256937.67b492e0e7551.jpg';
+const SETTINGS_KEY = 'hyperos_launcher_settings';
+const IDB_NAME = 'hyperos_launcher_db';
+const IDB_STORE = 'wallpapers';
+const IDB_VERSION = 1;
+
+// ── IndexedDB helpers ──
+function openIDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(IDB_STORE)) {
+        db.createObjectStore(IDB_STORE);
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+function idbPut(key, value) {
+  return openIDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(value, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  }));
+}
+function idbGet(key) {
+  return openIDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readonly');
+    const req = tx.objectStore(IDB_STORE).get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  }));
+}
+function idbDelete(key) {
+  return openIDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  }));
+}
+
+// ── localStorage settings ──
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  return null;
+}
+function saveSettings(s) {
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch(e) {}
+}
+
+const settings = loadSettings() || {
+  wallpaper: DEFAULT_WALLPAPER,
+  wallpaperType: 'url', // 'url' | 'local-image' | 'local-video'
+  iconOrder: ['btnSettings','btnYouTube','btnCamera','btnCalc'],
+  dockGap: 18,
+  dockPadding: 13,
+  dockRadius: 29,
+  wifi: false,
+  bluetooth: false,
+  darkMode: false,
+};
+
+// ── Apply wallpaper (image or video, both from IndexedDB or URL) ──
+let currentImageObjectURL = null; // track blob URL for cleanup
+let currentVideoObjectURL = null;
+let wallpaperApplyPromise = null; // guard against race conditions
+
+async function applyWallpaper() {
+  // Guard: if already applying, wait for it to finish then re-apply
+  if (wallpaperApplyPromise) {
+    await wallpaperApplyPromise;
+  }
+  let resolve;
+  wallpaperApplyPromise = new Promise(r => resolve = r);
+
+  try {
+    const img = document.getElementById('wallpaperImg');
+    const vid = document.getElementById('wallpaperVideo');
+
+    const isVideo = settings.wallpaperType === 'local-video';
+    const isLocalImage = settings.wallpaperType === 'local-image';
+
+    // Clean up the OTHER type's blob URL when switching types
+    if (isVideo) {
+      if (currentImageObjectURL) { URL.revokeObjectURL(currentImageObjectURL); currentImageObjectURL = null; img.src = ''; }
+    } else {
+      if (currentVideoObjectURL) { URL.revokeObjectURL(currentVideoObjectURL); currentVideoObjectURL = null; vid.pause(); vid.src = ''; }
+    }
+
+    const hasOpen = appState !== 'closed';
+
+    if (isVideo) {
+      // Load video blob from IndexedDB
+      try {
+        const blob = await idbGet('wallpaper_video');
+        if (blob) {
+          if (currentVideoObjectURL) URL.revokeObjectURL(currentVideoObjectURL);
+          currentVideoObjectURL = URL.createObjectURL(blob);
+          vid.src = currentVideoObjectURL;
+          vid.style.display = '';
+          img.style.display = 'none';
+          vid.play().catch(() => {});
+          vid.classList.toggle('blurred', hasOpen);
+          img.classList.toggle('blurred', false);
+          return;
+        }
+      } catch(e) { console.warn('IDB video load failed:', e); }
+      // Fallback to default if video not found
+      settings.wallpaperType = 'url';
+      settings.wallpaper = DEFAULT_WALLPAPER;
+      saveSettings(settings);
+    }
+
+    if (isLocalImage) {
+      // Load image blob from IndexedDB (full quality, no resize)
+      try {
+        const blob = await idbGet('wallpaper_image');
+        if (blob) {
+          if (currentImageObjectURL) URL.revokeObjectURL(currentImageObjectURL);
+          currentImageObjectURL = URL.createObjectURL(blob);
+          vid.style.display = 'none';
+          img.style.display = '';
+          img.src = currentImageObjectURL;
+          // Apply blur state for local-image wallpaper too
+          img.classList.toggle('blurred', hasOpen);
+          vid.classList.toggle('blurred', false);
+          return;
+        }
+      } catch(e) { console.warn('IDB image load failed:', e); }
+      // Fallback to default if image not found
+      settings.wallpaperType = 'url';
+      settings.wallpaper = DEFAULT_WALLPAPER;
+      saveSettings(settings);
+    }
+
+    // URL wallpaper (default)
+    vid.style.display = 'none';
+    img.style.display = '';
+    img.src = settings.wallpaper || DEFAULT_WALLPAPER;
+    img.classList.toggle('blurred', hasOpen);
+    vid.classList.toggle('blurred', false);
+  } finally {
+    wallpaperApplyPromise = null;
+    resolve();
+  }
+}
+
+applyWallpaper();
+applyIconOrder();
+applyDockStyle();
+
+// ── Wallpaper upload handler (image + video, both stored in IndexedDB) ──
+document.getElementById('wallpaperInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const isVideo = file.type.startsWith('video/');
+
+  if (isVideo) {
+    // Store video as Blob in IndexedDB — full quality, no limit
+    idbPut('wallpaper_video', file).then(() => {
+      settings.wallpaperType = 'local-video';
+      settings.wallpaper = 'video://local';
+      saveSettings(settings);
+      applyWallpaper();
+    }).catch(err => {
+      console.error('Failed to store video wallpaper:', err);
+      alert('ไม่สามารถบันทึกวิดีโอวอลเปเปอร์ได้ ไฟล์อาจใหญ่เกินไป');
+    });
+  } else {
+    // Store image as Blob in IndexedDB — full quality, no resize!
+    idbPut('wallpaper_image', file).then(() => {
+      settings.wallpaperType = 'local-image';
+      settings.wallpaper = 'image://local';
+      saveSettings(settings);
+      applyWallpaper();
+    }).catch(err => {
+      console.error('Failed to store image wallpaper:', err);
+      alert('ไม่สามารถบันทึกรูปวอลเปเปอร์ได้');
+    });
+  }
+  e.target.value = ''; // reset for re-upload
+});
+
+// ═══════════════════════════════════════════════════════════
+//  SETTINGS COMMUNICATION — postMessage with settings iframe
+// ═══════════════════════════════════════════════════════════
+function applyIconOrder() {
+  const dock = document.querySelector('.dock');
+  if (!dock) return;
+  const icons = {};
+  document.querySelectorAll('.app-icon').forEach(icon => {
+    icons[icon.id] = icon;
+  });
+  const order = settings.iconOrder || ['btnSettings','btnYouTube','btnCamera','btnCalc'];
+  order.forEach(id => {
+    if (icons[id]) dock.appendChild(icons[id]);
+  });
+}
+
+function applyDockStyle() {
+  const dock = document.querySelector('.dock');
+  if (!dock) return;
+  dock.style.gap = (settings.dockGap || 18) + 'px';
+  dock.style.padding = (settings.dockPadding || 13) + 'px';
+  dock.style.borderRadius = (settings.dockRadius || 29) + 'px';
+}
+
+function applySettings() {
+  applyWallpaper();
+  applyIconOrder();
+  applyDockStyle();
+}
+
+// Listen for messages from settings iframe
+window.addEventListener('message', function(e) {
+  if (!e.data || !e.data.type) return;
+
+  if (e.data.type === 'hyperos_settings') {
+    const { key, value } = e.data;
+    settings[key] = value;
+    saveSettings(settings);
+    applySettings();
+  }
+
+  if (e.data.type === 'hyperos_wallpaper_pick') {
+    const input = document.getElementById('wallpaperInput');
+    // Set accept type based on what the settings page requested
+    if (e.data.accept === 'video') {
+      input.accept = 'video/mp4,video/webm';
+    } else if (e.data.accept === 'image') {
+      input.accept = 'image/*';
+    } else {
+      input.accept = 'image/*,video/mp4,video/webm';
+    }
+    input.click();
+  }
+
+  if (e.data.type === 'hyperos_wallpaper_delete_video') {
+    idbDelete('wallpaper_video');
+    idbDelete('wallpaper_image');
+    settings.wallpaperType = 'url';
+    settings.wallpaper = DEFAULT_WALLPAPER;
+    saveSettings(settings);
+    applyWallpaper();
+  }
+
+  if (e.data.type === 'hyperos_reset') {
+    localStorage.removeItem(SETTINGS_KEY);
+    Promise.all([idbDelete('wallpaper_video'), idbDelete('wallpaper_image')]).finally(() => location.reload());
+  }
+});
+
+// Send settings to iframe when it loads
+function sendSettingsToFrame(frame) {
+  try {
+    // Wait for iframe to be ready, then send settings
+    const send = () => {
+      try {
+        frame.contentWindow.postMessage({
+          type: 'hyperos_init_settings',
+          settings: settings
+        }, '*');
+      } catch(e) {}
+    };
+    if (frame.contentDocument && frame.contentDocument.readyState === 'complete') {
+      send();
+    } else {
+      frame.addEventListener('load', send, { once: true });
+    }
+  } catch(e) {}
+}
+
 // ═══════════════════════════════════════════════════════════
 //  APP URL MAP — Load from real .html files
 // ═══════════════════════════════════════════════════════════
@@ -323,6 +616,12 @@ function updateGlobalUI() {
   if(hideDock){bgOverlay.classList.add('active');bgOverlay.style.opacity='';}
   else{bgOverlay.classList.remove('active');bgOverlay.style.opacity='';}
   wallpaper.classList.toggle('blurred',hasOpen||boxPool.some(b=>b.state==='opening'));
+  // Also toggle blur on video wallpaper + pause/resume for performance
+  const wallpaperVid = document.getElementById('wallpaperVideo');
+  if (wallpaperVid) {
+    wallpaperVid.classList.toggle('blurred',hasOpen||boxPool.some(b=>b.state==='opening'));
+    if (hasOpen) wallpaperVid.pause(); else wallpaperVid.play().catch(()=>{});
+  }
   if(hasOpen)appState='open'; else if(hasBusy)appState='transitioning'; else appState='closed';
 }
 
@@ -589,6 +888,7 @@ function openApp(iconEl, url) {
   }
   function finishOpen() {
     box.el.style.transform = 'none';
+    box.web.style.transition = 'border-radius 150ms ease';
     box.web.style.borderRadius = '16px';
     box.web.style.opacity = '1';
     box.iconLayer.classList.remove('visible');
@@ -598,7 +898,7 @@ function openApp(iconEl, url) {
   }
   box.rafId = requestAnimationFrame(tickOpen);
   if (box.openTimer) clearTimeout(box.openTimer);
-  box.openTimer = setTimeout(() => { box.frame.src = url; box.openTimer = null; }, 80);
+  box.openTimer = setTimeout(() => { box.frame.src = url; box.openTimer = null; sendSettingsToFrame(box.frame); }, 80);
   box.dragCurrentX = 0; box.dragCurrentY = 0;
   updateGlobalUI();
 }

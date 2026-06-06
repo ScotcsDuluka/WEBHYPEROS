@@ -6,12 +6,27 @@ body{font-family:-apple-system,"SF Pro Display","Noto Sans SC",system-ui,sans-se
 .topbar .logo{font-size:18px;font-weight:700;letter-spacing:-0.5px;display:flex;align-items:center;gap:4px}
 .topbar .logo svg{width:24px;height:24px;fill:#ff0000}
 .topbar .actions{margin-left:auto;display:flex;gap:16px;align-items:center}
-.topbar .actions svg{width:22px;height:22px;fill:#fff;opacity:0.9}
+.topbar .actions svg{width:22px;height:22px;fill:#fff;opacity:0.9;cursor:pointer}
+.topbar .actions svg:active{opacity:0.5}
+.search-wrap{padding:6px 12px;position:sticky;top:48px;z-index:10;background:#0f0f0f}
+.search-bar{display:flex;align-items:center;background:rgba(255,255,255,0.1);border-radius:10px;overflow:hidden}
+.search-bar input{flex:1;background:transparent;border:none;color:#fff;font-size:15px;padding:10px 14px;outline:none}
+.search-bar input::placeholder{color:rgba(255,255,255,0.4)}
+.search-bar .search-btn{background:rgba(255,255,255,0.1);border:none;color:#fff;padding:10px 14px;cursor:pointer;display:flex;align-items:center}
+.search-bar .search-btn:active{opacity:0.6}
+.search-bar .search-btn svg{width:20px;height:20px;fill:#fff}
 .chips{display:flex;gap:8px;padding:8px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
 .chip{padding:6px 14px;background:rgba(255,255,255,0.12);border-radius:8px;font-size:13px;white-space:nowrap;color:#fff;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .chip.active{background:#fff;color:#0f0f0f;font-weight:600}
 .chip:active{opacity:0.7}
+.player-area{display:none;width:100%;aspect-ratio:16/9;background:#000;position:relative}
+.player-area.active{display:block}
+.player-area iframe{width:100%;height:100%;border:none}
+.video-info{display:none;padding:12px;border-bottom:1px solid rgba(255,255,255,0.1)}
+.video-info.active{display:block}
+.video-info .vtitle{font-size:15px;font-weight:600;line-height:1.3}
+.video-info .vmeta{font-size:12px;color:rgba(255,255,255,0.5);margin-top:4px}
 .video-card{padding:0 0 16px;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .video-card:active{opacity:0.7}
 .thumb{width:100%;aspect-ratio:16/9;background:rgba(255,255,255,0.08);border-radius:12px;overflow:hidden;position:relative;margin:0}
@@ -27,49 +42,164 @@ body{font-family:-apple-system,"SF Pro Display","Noto Sans SC",system-ui,sans-se
 .shorts-section .shorts-label{font-size:15px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px}
 .shorts-row{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
 .shorts-row::-webkit-scrollbar{display:none}
-.short-card{flex-shrink:0;width:140px}
+.short-card{flex-shrink:0;width:140px;cursor:pointer}
+.short-card:active{opacity:0.7}
 .short-card .short-thumb{width:140px;height:248px;background:rgba(255,255,255,0.08);border-radius:12px;position:relative;overflow:hidden}
 .short-card .short-thumb .views{position:absolute;bottom:8px;left:8px;font-size:11px;color:#fff}
 .short-card .short-title{font-size:12px;margin-top:6px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.open-yt{margin:16px 12px;padding:14px;background:#ff0000;border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;width:calc(100% - 24px)}
+.open-yt:active{opacity:0.8}
+.open-yt svg{width:20px;height:20px;fill:#fff}
+.loading{display:none;text-align:center;padding:40px 20px;color:rgba(255,255,255,0.5)}
+.loading.active{display:block}
+.loading .spinner{width:32px;height:32px;border:3px solid rgba(255,255,255,0.1);border-top-color:#ff0000;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
 </style></head><body>
 <div class="topbar">
-  <div class="logo"><svg viewBox="0 0 24 24"><path d="M10 8l6 4-6 4V8z"/><path d="M21.58 7.19c-.23-.86-.91-1.54-1.77-1.77C18.25 5 12 5 12 5s-6.25 0-7.81.42c-.86.23-1.54.91-1.77 1.77C2 8.75 2 12 2 12s0 3.25.42 4.81c.23.86.91 1.54 1.77 1.77C5.75 19 12 19 12 19s6.25 0 7.81-.42c.86-.23 1.54-.91 1.77-1.77C22 15.25 22 12 22 12s0-3.25-.42-4.81z"/></svg>YouTube</div>
-  <div class="actions"><svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg><svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg></div>
-</div>
-<div class="chips">
-  <div class="chip active">All</div><div class="chip">Gaming</div><div class="chip">Music</div><div class="chip">Live</div><div class="chip">Mixes</div><div class="chip">Tech</div><div class="chip">Cooking</div><div class="chip">News</div>
-</div>
-<div class="videos">
-  <div class="video-card">
-    <div class="thumb" style="background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460)"><div class="duration">12:34</div></div>
-    <div class="meta"><div class="avatar" style="background:linear-gradient(135deg,#e91e63,#ff5722)"></div><div class="text"><div class="title">Building a Complete Android App from Scratch - Full Tutorial 2024</div><div class="sub">Tech Academy · 2.4M views · 3 weeks ago</div></div><span class="dots">⋮</span></div>
+  <div class="logo" onclick="goHome()"><svg viewBox="0 0 24 24"><path d="M10 8l6 4-6 4V8z"/><path d="M21.58 7.19c-.23-.86-.91-1.54-1.77-1.77C18.25 5 12 5 12 5s-6.25 0-7.81.42c-.86.23-1.54.91-1.77 1.77C2 8.75 2 12 2 12s0 3.25.42 4.81c.23.86.91 1.54 1.77 1.77C5.75 19 12 19 12 19s6.25 0 7.81-.42c.86-.23 1.54-.91 1.77-1.77C22 15.25 22 12 22 12s0-3.25-.42-4.81z"/></svg>YouTube</div>
+  <div class="actions">
+    <svg onclick="document.getElementById('searchInput').focus()" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+    <svg onclick="window.open('https://www.youtube.com','_blank')" viewBox="0 0 24 24"><path d="M19 19H5V5h7V3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
   </div>
-  <div class="video-card">
-    <div class="thumb" style="background:linear-gradient(135deg,#0d1117,#1a1a2e,#2d1b69)"><div class="duration">28:15</div></div>
-    <div class="meta"><div class="avatar" style="background:linear-gradient(135deg,#4caf50,#00bcd4)"></div><div class="text"><div class="title">Xiaomi HyperOS 2.0 - Everything You Need to Know</div><div class="sub">MKBHD · 8.1M views · 1 month ago</div></div><span class="dots">⋮</span></div>
+</div>
+<div class="search-wrap">
+  <div class="search-bar">
+    <input id="searchInput" type="text" placeholder="Search YouTube" onkeydown="if(event.key==='Enter')doSearch()">
+    <button class="search-btn" onclick="doSearch()"><svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg></button>
   </div>
-  <div class="video-card">
-    <div class="thumb" style="background:linear-gradient(135deg,#1b2838,#2a475e,#1b2838)"><div class="duration">1:02:44</div></div>
+</div>
+<div class="player-area" id="playerArea">
+  <iframe id="playerFrame" src="" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+</div>
+<div class="video-info" id="videoInfo">
+  <div class="vtitle" id="videoTitle"></div>
+  <div class="vmeta" id="videoMeta"></div>
+</div>
+<div class="loading" id="loading"><div class="spinner"></div>Searching...</div>
+<div id="homeContent">
+<div class="chips" id="chipBar">
+  <div class="chip active" onclick="selectChip(this,'')">All</div>
+  <div class="chip" onclick="selectChip(this,'gaming')">Gaming</div>
+  <div class="chip" onclick="selectChip(this,'music')">Music</div>
+  <div class="chip" onclick="selectChip(this,'live')">Live</div>
+  <div class="chip" onclick="selectChip(this,'tech')">Tech</div>
+  <div class="chip" onclick="selectChip(this,'cooking')">Cooking</div>
+  <div class="chip" onclick="selectChip(this,'news')">News</div>
+</div>
+<div class="videos" id="videoList">
+  <div class="video-card" onclick="playVideo('dQw4w9WgXcQ','Rick Astley - Never Gonna Give You Up','Rick Astley · 1.5B views')">
+    <div class="thumb" style="background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460)"><div class="duration">3:33</div></div>
+    <div class="meta"><div class="avatar" style="background:linear-gradient(135deg,#e91e63,#ff5722)"></div><div class="text"><div class="title">Rick Astley - Never Gonna Give You Up (Official Video)</div><div class="sub">Rick Astley · 1.5B views · 15 years ago</div></div><span class="dots">⋮</span></div>
+  </div>
+  <div class="video-card" onclick="playVideo('jNQXAC9IVRw','Me at the zoo','jawed · 300M views')">
+    <div class="thumb" style="background:linear-gradient(135deg,#0d1117,#1a1a2e,#2d1b69)"><div class="duration">0:19</div></div>
+    <div class="meta"><div class="avatar" style="background:linear-gradient(135deg,#4caf50,#00bcd4)"></div><div class="text"><div class="title">Me at the zoo — The first YouTube video ever</div><div class="sub">jawed · 300M views · 18 years ago</div></div><span class="dots">⋮</span></div>
+  </div>
+  <div class="video-card" onclick="playVideo('jfKfPfyJRdk','Lofi Hip Hop Radio - Beats to Relax/Study To','Lofi Girl · Streaming now')">
+    <div class="thumb" style="background:linear-gradient(135deg,#1b2838,#2a475e,#1b2838)"><div class="duration">LIVE</div></div>
     <div class="meta"><div class="avatar" style="background:linear-gradient(135deg,#ff9800,#f44336)"></div><div class="text"><div class="title">Lofi Hip Hop Radio - Beats to Relax/Study To</div><div class="sub">Lofi Girl · 15M views · Streaming now</div></div><span class="dots">⋮</span></div>
+  </div>
+  <div class="video-card" onclick="playVideo('9bZkp7q19f0','PSY - GANGNAM STYLE','officialpsy · 4.9B views')">
+    <div class="thumb" style="background:linear-gradient(135deg,#2d1b69,#11998e)"><div class="duration">4:13</div></div>
+    <div class="meta"><div class="avatar" style="background:linear-gradient(135deg,#9c27b0,#673ab7)"></div><div class="text"><div class="title">PSY - GANGNAM STYLE(강남스타일) M/V</div><div class="sub">officialpsy · 4.9B views · 12 years ago</div></div><span class="dots">⋮</span></div>
+  </div>
+  <div class="video-card" onclick="playVideo('kJQP7kiw5Fk','Luis Fonsi - Despacito ft. Daddy Yankee','Luis Fonsi · 8.2B views')">
+    <div class="thumb" style="background:linear-gradient(135deg,#141e30,#243b55)"><div class="duration">4:42</div></div>
+    <div class="meta"><div class="avatar" style="background:linear-gradient(135deg,#e91e63,#9c27b0)"></div><div class="text"><div class="title">Luis Fonsi - Despacito ft. Daddy Yankee</div><div class="sub">Luis Fonsi · 8.2B views · 7 years ago</div></div><span class="dots">⋮</span></div>
   </div>
 </div>
 <div class="shorts-section">
   <div class="shorts-label"><svg width="20" height="20" viewBox="0 0 24 24" fill="#ff0000"><path d="M10 14.65v-5.3L15 12l-5 2.65zm7.77-4.33c-.77-.32-1.2-.5-1.2-.5L18 9.06c1.84-.96 2.53-3.23 1.56-5.06s-3.24-2.53-5.07-1.56L6 6.94c-1.29.68-2.07 2.04-2 3.49.07 1.42.93 2.67 2.22 3.25.03.01 1.2.5 1.2.5L6 14.93c-1.83.97-2.53 3.24-1.56 5.07.97 1.83 3.24 2.53 5.07 1.56l8.5-4.5c1.29-.68 2.06-2.04 1.99-3.49-.07-1.42-.94-2.68-2.23-3.25z"/></svg>Shorts</div>
   <div class="shorts-row">
-    <div class="short-card"><div class="short-thumb" style="background:linear-gradient(135deg,#ff6b6b,#ee5a24)"><div class="views">2.3M</div></div><div class="short-title">Amazing camera trick you didn't know!</div></div>
-    <div class="short-card"><div class="short-thumb" style="background:linear-gradient(135deg,#a29bfe,#6c5ce7)"><div class="views">890K</div></div><div class="short-title">5 hidden features in HyperOS</div></div>
-    <div class="short-card"><div class="short-thumb" style="background:linear-gradient(135deg,#00cec9,#0984e3)"><div class="views">1.5M</div></div><div class="short-title">DIY phone stand in 30 seconds</div></div>
+    <div class="short-card" onclick="playVideo('dQw4w9WgXcQ','Rick Roll','')"><div class="short-thumb" style="background:linear-gradient(135deg,#ff6b6b,#ee5a24)"><div class="views">2.3M</div></div><div class="short-title">You know the rules...</div></div>
+    <div class="short-card" onclick="playVideo('9bZkp7q19f0','Gangnam Style','')"><div class="short-thumb" style="background:linear-gradient(135deg,#a29bfe,#6c5ce7)"><div class="views">890K</div></div><div class="short-title">PSY - Gangnam Style</div></div>
+    <div class="short-card" onclick="playVideo('kJQP7kiw5Fk','Despacito','')"><div class="short-thumb" style="background:linear-gradient(135deg,#00cec9,#0984e3)"><div class="views">1.5M</div></div><div class="short-title">Luis Fonsi - Despacito</div></div>
   </div>
 </div>
-<div class="videos">
-  <div class="video-card">
-    <div class="thumb" style="background:linear-gradient(135deg,#2d1b69,#11998e)"><div class="duration">15:42</div></div>
-    <div class="meta"><div class="avatar" style="background:linear-gradient(135deg,#9c27b0,#673ab7)"></div><div class="text"><div class="title">Why I switched to Xiaomi - 6 Month Review</div><div class="sub">Dave2D · 3.2M views · 2 weeks ago</div></div><span class="dots">⋮</span></div>
-  </div>
-  <div class="video-card">
-    <div class="thumb" style="background:linear-gradient(135deg,#141e30,#243b55)"><div class="duration">8:21</div></div>
-    <div class="meta"><div class="avatar" style="background:linear-gradient(135deg,#e91e63,#9c27b0)"></div><div class="text"><div class="title">The BEST tablets for students in 2024</div><div class="sub">Unbox Therapy · 5.6M views · 1 week ago</div></div><span class="dots">⋮</span></div>
-  </div>
+</div>
+<button class="open-yt" onclick="window.open('https://www.youtube.com','_blank')"><svg viewBox="0 0 24 24"><path d="M19 19H5V5h7V3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>Open YouTube.com</button>
+<div style="height:80px"></div>
+<script>
+function playVideo(id, title, meta) {
+  document.getElementById('playerFrame').src = 'https://www.youtube.com/embed/' + id + '?autoplay=1&rel=0';
+  document.getElementById('playerArea').classList.add('active');
+  document.getElementById('videoInfo').classList.add('active');
+  document.getElementById('videoTitle').textContent = title;
+  document.getElementById('videoMeta').textContent = meta;
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function goHome() {
+  document.getElementById('playerFrame').src = '';
+  document.getElementById('playerArea').classList.remove('active');
+  document.getElementById('videoInfo').classList.remove('active');
+  document.getElementById('homeContent').style.display = '';
+  document.getElementById('searchResults').style.display = 'none';
+}
+function selectChip(el, q) {
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  if(q) doSearch(q);
+}
+function doSearch(override) {
+  var q = override || document.getElementById('searchInput').value.trim();
+  if(!q) return;
+  if(!override) document.getElementById('searchInput').value = q;
+  document.getElementById('playerFrame').src = '';
+  document.getElementById('playerArea').classList.remove('active');
+  document.getElementById('videoInfo').classList.remove('active');
+  document.getElementById('homeContent').style.display = 'none';
+  document.getElementById('searchResults').style.display = 'block';
+  document.getElementById('loading').classList.add('active');
+  document.getElementById('resultList').innerHTML = '';
+  fetchSearch(q);
+}
+function fetchSearch(q) {
+  var script = document.createElement('script');
+  script.src = 'https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=dQw4w9WgXcQ&format=json&callback=none';
+  var results = [];
+  var searchUrl = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(q);
+  var proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(searchUrl);
+  fetch(proxyUrl).then(function(r){return r.text()}).then(function(html){
+    var vidReg = /"videoId":"([a-zA-Z0-9_-]{11})"/g;
+    var titleReg = /"title":{"runs":\[{"text":"([^"]+)"}/g;
+    var seen = {};
+    var vids = [];
+    var m;
+    while((m = vidReg.exec(html)) !== null) {
+      var vid = m[1];
+      if(!seen[vid]) { seen[vid]=true; vids.push(vid); }
+    }
+    var titles = [];
+    while((m = titleReg.exec(html)) !== null) {
+      titles.push(m[1].replace(/\\u0026/g,'&').replace(/\\"/g,'"'));
+    }
+    document.getElementById('loading').classList.remove('active');
+    var container = document.getElementById('resultList');
+    container.innerHTML = '';
+    var count = Math.min(vids.length, 20);
+    var colors = ['#1a1a2e,#0f3460','#0d1117,#2d1b69','#1b2838,#2a475e','#2d1b69,#11998e','#141e30,#243b55','#0f3460,#e91e63','#1a1a2e,#ff5722','#0d1117,#4caf50'];
+    for(var i=0;i<count;i++) {
+      var title = titles[i] || 'Video';
+      var vid = vids[i];
+      var c1 = colors[i%colors.length].split(',')[0];
+      var c2 = colors[i%colors.length].split(',')[1];
+      var card = document.createElement('div');
+      card.className = 'video-card';
+      card.setAttribute('onclick',"playVideo('"+vid+"','"+title.replace(/'/g,"\\'")+"','YouTube')");
+      card.innerHTML = '<div class="thumb" style="background:linear-gradient(135deg,'+c1+','+c2+')"><div class="duration">▶</div></div><div class="meta"><div class="avatar" style="background:linear-gradient(135deg,'+c1+','+c2+')"></div><div class="text"><div class="title">'+title+'</div><div class="sub">YouTube</div></div><span class="dots">⋮</span></div>';
+      container.appendChild(card);
+    }
+    if(count===0) {
+      container.innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.5)">No results found.<br>Try the button below to open YouTube.com</div>';
+    }
+  }).catch(function(){
+    document.getElementById('loading').classList.remove('active');
+    document.getElementById('resultList').innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.5)">Search requires internet connection.<br>Use the button below to open YouTube.com directly.</div>';
+  });
+}
+</script>
+<div id="searchResults" style="display:none;padding:12px">
+  <div id="resultList"></div>
 </div>
 <div style="height:80px"></div>
 </body></html>
