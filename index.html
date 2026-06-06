@@ -568,12 +568,11 @@ function closeBox(box) {
   if (!target) { finishBoxClose(box); return; }
   const tTx=target.tx, tTy=target.ty, tSx=target.sx, tSy=target.sy;
 
-  // ★ Close animation: เส้นโค้งขึ้นข้างบน (ดึงขึ้นเวี่ยง)
-  // เส้นทางเป็น quadratic bezier: start → ข้างบน → icon
+  // ★ Close animation: เส้นโค้งขึ้นข้างบน (มุมมองด้านข้าง)
+  // เส้นทางเป็น quadratic bezier: start → ขึ้นบน → icon
   const closeDuration = 550; // ms
-  // control point = ชดเชยขึ้นข้างบน — ยิ่งค่าติดลบยิ่งโค้งขึ้นสูง
   const cpTx = (startTx + tTx) / 2;
-  const cpTy = Math.min(startTy, tTy) - H * 0.15;
+  const cpTy = Math.min(startTy, tTy) - H * 0.18;
 
   box.el.classList.add('passthrough');
   box.el.classList.remove('z-open');
