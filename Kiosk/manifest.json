@@ -1,0 +1,22 @@
+{
+  "manifest_version": 2,
+  "name": "HyperOS Launcher",
+  "description": "Xiaomi HyperOS Launcher for ChromeOS",
+  "version": "1.0",
+  "kiosk_enabled": true,
+  "kiosk_only": true,
+  "app": {
+    "background": {
+      "scripts": ["background.js"]
+    }
+  },
+  "permissions": [
+    "fullscreen",
+    "pointerLock",
+    "power",
+    "webview"
+  ],
+  "icons": {
+    "128": "icon.png"
+  }
+}
