@@ -276,18 +276,16 @@ function openApp(iconEl, url) {
   const iconId = iconEl.id;
   const activeBox = findActiveBox();
   if (activeBox && activeBox.iconId === iconId) { closeBox(activeBox); return; }
-  // ★ ถ้าแอปเดิมกำลัง closing อยู่ ไม่ต้องเปิดใหม่
-  const closingSame = boxPool.find(b => b.state === 'closing' && b.iconId === iconId);
-  if (closingSame) return;
   // ★ สลับแอปแบบ parallel: ปิดเก่าด้วย closeBox, เปิดใหม่ใน box ว่าง
-  const busy = boxPool.filter(b => b.state !== 'idle');
-  busy.forEach(b => {
+  boxPool.forEach(b => {
+    if (b.state === 'idle') return;
     if (b.state === 'opening' || b.state === 'open') { closeBox(b); }
+    else if (b.state === 'closing' && b.iconId === iconId) { forceResetBox(b); } // ★ แอปเดียวกัน → force reset ไม่งั้น icon ซ้ำ
     else if (b.state === 'dragging') { forceResetBox(b); }
-    // closing → ปล่อยทำงานต่อ
+    // closing แอปอื่น → ปล่อยทำงานต่อ
   });
   let box = findIdleBox();
-  // ★ ถ้าไม่มี idle box ให้ force reset closing box ที่ใกล้เสร็จที่สุด
+  // ★ ถ้าไม่มี idle box ให้ force reset closing box เก่าที่สุด
   if (!box) {
     const closingBoxes = boxPool.filter(b => b.state === 'closing');
     if (closingBoxes.length > 0) forceResetBox(closingBoxes[0]);
