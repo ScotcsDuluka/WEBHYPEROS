@@ -80,7 +80,7 @@ img.wallpaper {
 /* ─── App Icon (ใน dock) ─── */
 .app-icon {
   width: 52px; height: 52px;
-  border-radius: 15px;
+  border-radius: 42px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -96,7 +96,7 @@ img.wallpaper {
   top: 0; left: 0; right: 0;
   height: 50%;
   background: linear-gradient(180deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.04) 100%);
-  border-radius: 13px 13px 0 0;
+  border-radius: 40px 40px 0 0;
   pointer-events: none;
 }
 .app-icon svg { position: relative; z-index: 1; }
@@ -106,7 +106,7 @@ img.wallpaper {
   position: absolute;
   top: 0; left: 0;
   width: 100%; height: 100%;
-  border-radius: 15px;
+  border-radius: 42px;
   z-index: 2;
   pointer-events: none;
   opacity: 0;
@@ -153,7 +153,22 @@ img.wallpaper {
   pointer-events: none;
 }
 
-/* ─── Gesture Bar ─── */
+/* ─── Gesture Pill ใน BOX_anim (แค่การวาด) ─── */
+.box-gesture-pill {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 180px;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(0,0,0,0.18);
+  pointer-events: none;
+  z-index: 5;
+  transition: opacity 0.2s ease;
+}
+
+/* ─── Gesture Bar (touch area อย่างเดียว ไม่วาดอะไร) ─── */
 .gesture-bar {
   position: fixed;
   bottom: 0;
@@ -161,26 +176,11 @@ img.wallpaper {
   transform: translateX(-50%);
   width: 100%;
   height: 44px;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 12px;
   z-index: 50;
   touch-action: none;
   cursor: grab;
 }
 .gesture-bar:active { cursor: grabbing; }
-.gesture-pill {
-  width: 180px;
-  height: 5px;
-  border-radius: 3px;
-  background: rgba(255,255,255,0.35);
-  transition: background 0.4s ease, width 0.15s ease;
-  pointer-events: none;
-}
-.gesture-bar:active .gesture-pill { width: 150px; }
-.gesture-bar.on-app .gesture-pill { background: rgba(0,0,0,0.18); }
-.gesture-bar.on-app:active .gesture-pill { background: rgba(0,0,0,0.35); }
 </style>
 </head>
 <body>
@@ -195,6 +195,7 @@ img.wallpaper {
   <div class="box-web" id="boxWeb0">
     <iframe id="appFrame0" src="" allow="autoplay; fullscreen"></iframe>
   </div>
+  <div class="box-gesture-pill" id="boxPill0"></div>
 </div>
 
 <!-- BOX_anim B — อันสอง -->
@@ -202,12 +203,11 @@ img.wallpaper {
   <div class="box-web" id="boxWeb1">
     <iframe id="appFrame1" src="" allow="autoplay; fullscreen"></iframe>
   </div>
+  <div class="box-gesture-pill" id="boxPill1"></div>
 </div>
 
-<!-- Gesture Bar -->
-<div class="gesture-bar" id="gestureBar">
-  <div class="gesture-pill"></div>
-</div>
+<!-- Gesture Bar (touch area อย่างเดียว ไม่มี pill) -->
+<div class="gesture-bar" id="gestureBar"></div>
 
 <!-- Dock -->
 <div class="dock-wrap" id="dockWrap">
@@ -219,7 +219,18 @@ img.wallpaper {
     </div>
     <div class="app-icon" style="background: linear-gradient(145deg, #EF9A9A, #C62828);" id="btnYouTube" data-url="youtube.html">
       <svg width="26" height="26" viewBox="0 0 24 24" fill="white" fill-opacity=".9">
-        <path d="M10 15l5.19-3L10 9v6m11.56-7.83c.13.47.22 1.1.28 1.9.07.8.1 1.49.1 2.09L22 12c0 2.19-.16 3.8-.44 4.83-.25.9-.83 1.48-1.73 1.73-.47.13-1.33.22-2.65.28-1.3.07-2.49.1-3.59.1L12 19c-4.19 0-6.8-.16-7.83-.44-.9-.25-1.48-.83-1.73-1.73-.13-.47-.22-1.1-.28-1.9-.07-.8-.1-1.49-.1-2.09L2 12c0-2.19.16-3.8.44-4.83.25-.9.83-1.48 1.73-1.73.47-.13 1.33-.22 2.65-.28 1.3-.07-2.49-.1-3.59-.1L12 5c4.19 0 6.8.16 7.83.44.9.25 1.48.83 1.73 1.73z"/>
+        <path d="M10 15l5.19-3L10 9v6m11.56-7.83c.13.47.22 1.1.28 1.9.07.8.1 1.49.1 2.09L22 12c0 2.19-.16 3.8-.44 4.83-.25.9-.83 1.48-1.73 1.73-.47.13-1.33.22-2.65.28-1.3.07-2.49.1-3.59.1L12 19c-4.19 0-6.8-.16-7.83-.44-.9-.25-1.48-.83-1.73-1.73-.13-.47-.22-1.1-.28-1.9-.07-.8-.1-1.49-.1-2.09L2 12c0-2.19.16-3.8.44-4.83.25-.9.83-1.48 1.73-1.73.47-.13 1.33-.22 2.65-.28 1.3-.07 2.49-.1 3.59-.1L12 5c4.19 0 6.8.16 7.83.44.9.25 1.48.83 1.73 1.73z"/>
+      </svg>
+    </div>
+    <div class="app-icon" style="background: linear-gradient(145deg, #90A4AE, #37474F);" id="btnCamera" data-url="camera.html">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="white" fill-opacity=".88">
+        <path d="M12 15.2a3.2 3.2 0 100-6.4 3.2 3.2 0 000 6.4z"/>
+        <path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/>
+      </svg>
+    </div>
+    <div class="app-icon" style="background: linear-gradient(145deg, #FFCC80, #E65100);" id="btnCalc" data-url="calculator.html">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="white" fill-opacity=".88">
+        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7.5 4h5v2h-5V7zm0 4h5v2h-5v-2zM7 7h2v2H7V7zm0 4h2v2H7v-2zm0 4h2v2H7v-2zm4.5 0h5v2h-5v-2z"/>
       </svg>
     </div>
   </div>
@@ -227,18 +238,38 @@ img.wallpaper {
 
 <script>
 // ═══════════════════════════════════════════════════════════
+//  APP URL MAP
+// ═══════════════════════════════════════════════════════════
+
+function appPage(title, bg, color) {
+  return 'data:text/html;charset=utf-8,' + encodeURIComponent(
+    '<html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head>' +
+    '<body style="margin:0;padding:0;background:' + bg + ';display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif">' +
+    '<p style="color:' + color + ';font-size:28px;font-weight:300">' + title + '</p></body></html>'
+  );
+}
+
+const APP_URLS = {
+  btnSettings: appPage('Settings', '#f5f5f5', 'rgba(0,0,0,0.12)'),
+  btnYouTube:  appPage('YouTube',  '#0f0f0f', 'rgba(255,255,255,0.12)'),
+  btnCamera:   appPage('Camera',   '#000000', 'rgba(255,255,255,0.08)'),
+  btnCalc:     appPage('Calculator','#f0f0f0', 'rgba(0,0,0,0.12)'),
+};
+
+// ═══════════════════════════════════════════════════════════
 //  BOX POOL — 2 อันสำหรับ parallel animation
 // ═══════════════════════════════════════════════════════════
 
 const boxPool = [
   {
     idx: 0,
-    el:   document.getElementById('boxAnim0'),
-    web:  document.getElementById('boxWeb0'),
-    frame:document.getElementById('appFrame0'),
-    state: 'idle',    // idle | opening | open | closing
+    el:    document.getElementById('boxAnim0'),
+    web:   document.getElementById('boxWeb0'),
+    frame: document.getElementById('appFrame0'),
+    pill:  document.getElementById('boxPill0'),
+    state: 'idle',    // idle | open | dragging | closing
     icon: null,       // icon element ที่อยู่ใน box นี้
-    target: null,     // savedTarget ของ box นี้
+    target: null,     // ★ จำตำแหน่ง ICON ไว้ตอนเปิด → ใช้ตอนปิด
     rafId: null,
     openTimer: null,
     openIconTimer: null,
@@ -247,9 +278,10 @@ const boxPool = [
   },
   {
     idx: 1,
-    el:   document.getElementById('boxAnim1'),
-    web:  document.getElementById('boxWeb1'),
-    frame:document.getElementById('appFrame1'),
+    el:    document.getElementById('boxAnim1'),
+    web:   document.getElementById('boxWeb1'),
+    frame: document.getElementById('appFrame1'),
+    pill:  document.getElementById('boxPill1'),
     state: 'idle',
     icon: null,
     target: null,
@@ -277,13 +309,15 @@ let activeDragBox = null; // box ที่กำลังถูก drag
 const dockPlaceholders = new Map(); // iconId → placeholder element
 
 // ─── Tuning ───
-const CLOSE_UP_PX = 30;
+const R_ICON = 42;          // 15 + 27 = 42px (โค้ง icon + BOX_anim)
+const CLOSE_UP_PX = Math.round(window.innerHeight * 0.08);
 const OPEN_MS = 550;
 const SNAP_MS = 550;
 const VELOCITY_CLOSE = 0.35;
 const EASE_OUT_SMOOTH = 'cubic-bezier(0.16, 1, 0.3, 1)';
 const SPEED = 3.5;
 const FLING = 1.8;
+const DRAG_SHRINK = 0.30;   // BOX_anim เล็กตาม drag (0.30 = เล็กกว่าเดิม)
 
 // ═══════════════════════════════════════════════════════════
 //  HELPERS
@@ -299,9 +333,13 @@ function getIconTransform(iconRect) {
   return { tx, ty, sx, sy };
 }
 
-function calcRadius(progress, scale) {
-  const visualR = progress * 15;
-  return visualR / Math.max(0.01, scale);
+// ─── calcRadius: คืนค่า CSS border-radius แบบ Rh/Rv ───
+// ใช้กับ non-uniform scale(sx, sy) ให้ visual radius ตรง R_ICON ทุกทิศ
+function calcRadius(progress, sx, sy) {
+  if (typeof sy === 'undefined') sy = sx; // backward compat
+  const rh = progress * R_ICON / Math.max(0.01, sx);
+  const rv = progress * R_ICON / Math.max(0.01, sy);
+  return rh + 'px / ' + rv + 'px';
 }
 
 function shouldClose() {
@@ -311,18 +349,17 @@ function shouldClose() {
 }
 
 // ─── Sticky drag: ยิ่งลากไกลยิ่งหนึด (rubber band) ───
-// คืนค่า { x, y } ที่บีบอัดแล้ว
-// แนวตั้ง (Y): ลากขึ้น 100% ตาม 1:1, เกินนั้นบีบแรงขึ้นเรื่อยๆ
+// แนวตั้ง (Y): ช่วงขึ้น 40% ตาม 1:1, เกินนั้นบีบแรงขึ้นเรื่อยๆ
 // แนวนอน (X): บีบเบาๆ
 function applySticky(rawX, rawY) {
   const H = window.innerHeight;
   const W = window.innerWidth;
 
   // ── Y axis (หลัก) ──
-  // FREE_ZONE = ระยะที่ตามมือ 1:1 (ประมาณ 25% ของหน้าจอ)
-  // เกิน FREE_ZONE → ใช้สูตร rubber band: threshold + dim * (1 - 1/(1+|excess|/dim))
-  const FREE_ZONE_Y = H * 0.25;
-  const DIM_Y = H * 0.3;  // ความแรงของการหนึด (ยิ่งน้อยยิ่งหนึด)
+  // FREE_ZONE = ระยะที่ตามมือ 1:1 (40% ของหน้าจอ)
+  // เกิน FREE_ZONE → rubber band
+  const FREE_ZONE_Y = H * 0.40;
+  const DIM_Y = H * 0.2;   // ความแรงของการหนึด (ยิ่งน้อยยิ่งหนึด)
 
   let sy = rawY;
   if (rawY < 0) { // ลากขึ้น (ปิดแอป)
@@ -366,17 +403,14 @@ function findClosingBox() {
   return boxPool.find(b => b.state === 'closing') || null;
 }
 
-// ─── Update global UI (gesture bar, dock, overlay) ───
+// ─── Update global UI (dock, overlay) ───
 function updateGlobalUI() {
   const openBox = findOpenBox();
   const hasOpen = !!openBox;
-  const hasBusy = boxPool.some(b => b.state === 'opening' || b.state === 'closing');
+  const hasBusy = boxPool.some(b => b.state === 'closing');
 
-  // Gesture bar
-  gestureBar.classList.toggle('on-app', hasOpen || hasBusy);
-
-  // Dock: ซ่อนถ้ามี box ที่ open หรือ opening
-  const shouldHideDock = hasOpen || boxPool.some(b => b.state === 'opening');
+  // Dock: ซ่อนถ้ามี box ที่ open
+  const shouldHideDock = hasOpen;
   dockWrap.classList.toggle('hidden', shouldHideDock);
 
   // Overlay
@@ -400,24 +434,18 @@ function moveIconToBox(iconEl, box) {
   let ph = dockPlaceholders.get(iconId);
   if (!ph) {
     ph = document.createElement('div');
-    ph.style.cssText = 'width:52px;height:52px;flex-shrink:0;border-radius:15px;cursor:pointer;';
+    ph.style.cssText = 'width:52px;height:52px;flex-shrink:0;border-radius:42px;cursor:pointer;';
     dockPlaceholders.set(iconId, ph);
   }
   // placeholder กดได้ → เปิดแอป
-  const _url = iconEl.dataset.url;
-  ph.onclick = () => { openApp(iconEl, _url); };
+  ph.onclick = () => { openApp(iconEl, APP_URLS[iconId]); };
 
-  // ★ ถ้า icon ยังอยู่ใน dock → ใส่ placeholder แทนที่ตำแหน่งเดิม
-  // ถ้า icon ไม่ได้อยู่ใน dock แล้ว (อยู่ใน box อื่น) → ใส่ placeholder ใน dock ตรงที่เหมาะสม
   const dock = document.querySelector('.dock');
   if (iconEl.parentElement === dock) {
-    // ปกติ: icon อยู่ใน dock → ใส่ placeholder แทน
     dock.insertBefore(ph, iconEl);
   } else if (!ph.parentElement) {
-    // icon ไม่ได้อยู่ใน dock แล้ว + placeholder ไม่ได้อยู่ใน DOM → ใส่ placeholder ท้าย dock
     dock.appendChild(ph);
   }
-  // ถ้า placeholder อยู่ใน dock อยู่แล้ว → ไม่ต้องทำอะไร
 
   box.el.appendChild(iconEl);
 }
@@ -428,11 +456,9 @@ function moveIconToDock(iconEl) {
   const ph = dockPlaceholders.get(iconId);
   const dock = document.querySelector('.dock');
   if (ph && ph.parentElement) {
-    // placeholder อยู่ใน dock → ใส่ icon แทนที่ placeholder
     ph.parentElement.insertBefore(iconEl, ph);
     ph.remove();
   } else if (dock) {
-    // ไม่มี placeholder → ใส่ icon ท้าย dock
     dock.appendChild(iconEl);
   }
   iconEl.classList.remove('icon-visible');
@@ -450,8 +476,7 @@ function openApp(iconEl, url) {
     return;
   }
 
-  // ── ★ ถ้าไอคอนอยู่ใน box อื่น (closing/open) → force-reset ก่อน ──
-  // เพื่อย้าย icon กลับ dock ก่อนจะวัดตำแหน่ง + ใส่ placeholder
+  // ── ถ้าไอคอนอยู่ใน box อื่น → force-reset ก่อน ──
   const iconInBox = boxPool.find(b => b.icon === iconEl && b.state !== 'idle');
   if (iconInBox) {
     forceResetBox(iconInBox);
@@ -473,13 +498,6 @@ function openApp(iconEl, url) {
     box = findIdleBox();
   }
 
-  // ── ยังไม่มี → force-reset ตัวที่ opening ──
-  if (!box) {
-    const openingBox = boxPool.find(b => b.state === 'opening');
-    if (openingBox) forceResetBox(openingBox);
-    box = findIdleBox();
-  }
-
   if (!box) return; // ไม่น่าเกิด
 
   // ── บังคับ reflow ก่อนวัด (icon ต้องอยู่ใน dock แล้ว) ──
@@ -487,29 +505,33 @@ function openApp(iconEl, url) {
   const iconRect = iconEl.getBoundingClientRect();
   const iconTf = getIconTransform(iconRect);
 
-  box.target = iconTf; // ★ จำตำแหน่ง ICON ไว้ → ใช้ตอนปิด (tx, ty, sx, sy)
+  // ★ จำตำแหน่ง ICON ไว้ → ใช้ตอนปิด (tx, ty, sx, sy)
+  box.target = iconTf;
   box.icon = iconEl;
   moveIconToBox(iconEl, box);
 
   box.el.style.display = 'block';
   box.el.style.transition = 'none';
-  box.el.style.transform = `translate(${iconTf.tx}px, ${iconTf.ty}px) scale(${iconTf.sx}, ${iconTf.sy})`;
+  box.el.style.transform = 'translate(' + iconTf.tx + 'px,' + iconTf.ty + 'px) scale(' + iconTf.sx + ',' + iconTf.sy + ')';
   box.el.classList.remove('passthrough');
   box.el.classList.remove('z-closing');
   box.el.classList.add('z-open');
 
   iconEl.classList.add('icon-visible');
-  box.web.style.borderRadius = calcRadius(1, Math.min(iconTf.sx, iconTf.sy)) + 'px';
+  box.web.style.borderRadius = calcRadius(1, iconTf.sx, iconTf.sy);
   box.web.style.background = 'transparent';
   box.web.style.opacity = '1';
+
+  // gesture pill แสดง
+  box.pill.style.opacity = '1';
 
   box.frame.src = '';
   void box.el.offsetHeight;
 
-  box.el.style.transition = `transform ${OPEN_MS}ms ${EASE_OUT_SMOOTH}`;
+  box.el.style.transition = 'transform ' + OPEN_MS + 'ms ' + EASE_OUT_SMOOTH;
   box.el.style.transform = 'none';
-  box.web.style.transition = `border-radius ${OPEN_MS}ms ${EASE_OUT_SMOOTH}`;
-  box.web.style.borderRadius = '0px';
+  box.web.style.transition = 'border-radius ' + OPEN_MS + 'ms ' + EASE_OUT_SMOOTH;
+  box.web.style.borderRadius = '0px / 0px';
 
   if (box.openIconTimer) clearTimeout(box.openIconTimer);
   box.openIconTimer = setTimeout(() => {
@@ -531,18 +553,34 @@ function openApp(iconEl, url) {
 
 // ═══════════════════════════════════════════════════════════
 //  CLOSE BOX — spring animation (per-box)
+//  ★ อ่าน visual state ปัจจุบันจาก getBoundingClientRect
+//     แก้บั๊กเปิด/ปิดเร็วๆ ที่ box ยังอยู่ระหว่าง CSS transition
 // ═══════════════════════════════════════════════════════════
 
 function closeBox(box) {
   if (box.state !== 'open' && box.state !== 'dragging') return;
   box.state = 'closing';
 
-  if (box.openTimer)     { clearTimeout(box.openTimer); box.openTimer = null; }
-  if (box.openIconTimer)  { clearTimeout(box.openIconTimer); box.openIconTimer = null; }
-  if (box.rafId)         { cancelAnimationFrame(box.rafId); box.rafId = null; }
+  if (box.openTimer)      { clearTimeout(box.openTimer); box.openTimer = null; }
+  if (box.openIconTimer)   { clearTimeout(box.openIconTimer); box.openIconTimer = null; }
+  if (box.rafId)          { cancelAnimationFrame(box.rafId); box.rafId = null; }
 
   const W = window.innerWidth;
   const H = window.innerHeight;
+
+  // ★ อ่าน visual state ปัจจุบัน (ต่อให้กำลัง CSS transition ก็ได้)
+  const rect = box.el.getBoundingClientRect();
+  const startTx = rect.left;
+  const startTy = rect.top;
+  const startSx = rect.width / W;
+  const startSy = rect.height / H;
+
+  // ยกเลิก CSS transition และล็อคตำแหน่งปัจจุบัน
+  box.el.style.transition = 'none';
+  box.web.style.transition = 'none';
+  box.el.style.transform = 'translate(' + startTx + 'px,' + startTy + 'px) scale(' + startSx + ',' + startSy + ')';
+
+  // Target = จำไว้ตอนเปิด
   const target = box.target || (() => {
     const iconId = box.icon ? box.icon.id : null;
     const ph = iconId ? dockPlaceholders.get(iconId) : null;
@@ -550,13 +588,6 @@ function closeBox(box) {
            : (box.icon ? box.icon.getBoundingClientRect() : { left: W/2-26, top: H-120, width: 52, height: 52 });
     return getIconTransform(r);
   })();
-
-  const startTx = box.dragCurrentX;
-  const startTy = box.dragCurrentY;
-  const dragDist = Math.sqrt(startTx * startTx + startTy * startTy);
-  const maxDim = Math.max(W, H);
-  const dragProgress = Math.min(dragDist / maxDim, 1);
-  const startS = 1 - dragProgress * 0.15;
 
   const tTx = target.tx;
   const tTy = target.ty;
@@ -580,8 +611,6 @@ function closeBox(box) {
   box.el.classList.add('passthrough');
   box.el.classList.remove('z-open');
   box.el.classList.add('z-closing');
-  box.el.style.transition = 'none';
-  box.web.style.transition = 'none';
 
   let totalMs = 0;
   const maxMs = 1500;
@@ -611,17 +640,20 @@ function closeBox(box) {
 
     p = Math.max(0, Math.min(1.02, p));
 
+    // ★ interpolate แยก X/Y scale
     const curTx = startTx + (tTx - startTx) * p;
     const curTy = startTy + (tTy - startTy) * p + oY * flingHeight;
-    const curSx = startS + (tSx - startS) * p;
-    const curSy = startS + (tSy - startS) * p;
+    const curSx = startSx + (tSx - startSx) * p;
+    const curSy = startSy + (tSy - startSy) * p;
 
     const clampSx = Math.max(tSx * 0.5, Math.min(1.1, curSx));
     const clampSy = Math.max(tSy * 0.5, Math.min(1.1, curSy));
     const minS = Math.min(clampSx, clampSy);
 
     const sizeProgress = Math.max(0, Math.min(1, (1 - minS) / (1 - Math.min(tSx, tSy))));
-    const cssR = calcRadius(sizeProgress, minS);
+
+    // ★ border-radius แบบ Rh/Rv ให้ตรงกับโค้ง icon
+    const cssR = calcRadius(sizeProgress, clampSx, clampSy);
 
     if (!iconShown && minS < 0.3 && box.icon) {
       iconShown = true;
@@ -629,8 +661,13 @@ function closeBox(box) {
       box.web.style.background = 'transparent';
     }
 
-    box.el.style.transform = `translate(${curTx}px, ${curTy}px) scale(${clampSx}, ${clampSy})`;
-    box.web.style.borderRadius = cssR + 'px';
+    // ★ fade gesture pill ตอน box เล็กลง
+    if (box.pill) {
+      box.pill.style.opacity = Math.max(0, 1 - sizeProgress * 2.5);
+    }
+
+    box.el.style.transform = 'translate(' + curTx + 'px,' + curTy + 'px) scale(' + clampSx + ',' + clampSy + ')';
+    box.web.style.borderRadius = cssR;
 
     const pDist = Math.abs(p - 1);
     const oYAbs = Math.abs(oY);
@@ -638,10 +675,10 @@ function closeBox(box) {
 
     if (!settled && pDist < 0.003 && oYAbs < 0.01 && oYVelAbs < 0.1) {
       settled = true;
-      box.el.style.transition = `transform 250ms cubic-bezier(0.25, 0, 0.15, 1)`;
-      box.el.style.transform = `translate(${tTx}px, ${tTy}px) scale(${tSx}, ${tSy})`;
-      box.web.style.transition = `border-radius 250ms cubic-bezier(0.25, 0, 0.15, 1), opacity 250ms ease`;
-      box.web.style.borderRadius = calcRadius(1, Math.min(tSx, tSy)) + 'px';
+      box.el.style.transition = 'transform 250ms cubic-bezier(0.25, 0, 0.15, 1)';
+      box.el.style.transform = 'translate(' + tTx + 'px,' + tTy + 'px) scale(' + tSx + ',' + tSy + ')';
+      box.web.style.transition = 'border-radius 250ms cubic-bezier(0.25, 0, 0.15, 1), opacity 250ms ease';
+      box.web.style.borderRadius = calcRadius(1, tSx, tSy);
       box.web.style.opacity = '0';
       setTimeout(() => finishBoxClose(box), 260);
       return;
@@ -664,10 +701,11 @@ function finishBoxClose(box) {
   box.el.classList.add('z-open');
 
   box.web.style.opacity = '1';
-  box.web.style.borderRadius = '0px';
+  box.web.style.borderRadius = '0px / 0px';
   box.web.style.background = '#fff';
   box.web.style.transition = 'none';
 
+  if (box.pill) box.pill.style.opacity = '1';
   if (box.icon) moveIconToDock(box.icon);
   box.frame.src = '';
 
@@ -685,9 +723,9 @@ function finishBoxClose(box) {
 
 // ─── Force-reset box ทันที ───
 function forceResetBox(box) {
-  if (box.rafId)         { cancelAnimationFrame(box.rafId); box.rafId = null; }
-  if (box.openTimer)     { clearTimeout(box.openTimer); box.openTimer = null; }
-  if (box.openIconTimer)  { clearTimeout(box.openIconTimer); box.openIconTimer = null; }
+  if (box.rafId)          { cancelAnimationFrame(box.rafId); box.rafId = null; }
+  if (box.openTimer)      { clearTimeout(box.openTimer); box.openTimer = null; }
+  if (box.openIconTimer)   { clearTimeout(box.openIconTimer); box.openIconTimer = null; }
 
   box.el.style.display = 'none';
   box.el.style.transform = 'none';
@@ -697,10 +735,11 @@ function forceResetBox(box) {
   box.el.classList.add('z-open');
 
   box.web.style.opacity = '1';
-  box.web.style.borderRadius = '0px';
+  box.web.style.borderRadius = '0px / 0px';
   box.web.style.background = '#fff';
   box.web.style.transition = 'none';
 
+  if (box.pill) box.pill.style.opacity = '1';
   if (box.icon) moveIconToDock(box.icon);
   box.frame.src = '';
 
@@ -763,7 +802,7 @@ gestureBar.addEventListener('touchmove', (e) => {
   lastMoveY = y;
   lastMoveTime = now;
 
-  // ── Sticky drag: ยิ่งลากไกลยิ่งหนึด ──
+  // ── Sticky drag ──
   const rawX = x - dragStartX;
   const rawY = y - dragStartY;
   const sticky = applySticky(rawX, rawY);
@@ -773,11 +812,16 @@ gestureBar.addEventListener('touchmove', (e) => {
   const dist = Math.sqrt(sticky.x * sticky.x + sticky.y * sticky.y);
   const maxDim = Math.max(window.innerWidth, window.innerHeight);
   const progress = Math.min(dist / maxDim, 1);
-  const scale = 1 - progress * 0.15;
+  const scale = 1 - progress * DRAG_SHRINK;
 
-  activeDragBox.el.style.transform = `translate(${sticky.x}px, ${sticky.y}px) scale(${scale})`;
-  activeDragBox.web.style.borderRadius = calcRadius(progress, scale) + 'px';
+  activeDragBox.el.style.transform = 'translate(' + sticky.x + 'px,' + sticky.y + 'px) scale(' + scale + ')';
+  activeDragBox.web.style.borderRadius = calcRadius(progress, scale, scale);
   bgOverlay.style.opacity = Math.max(0, 1 - progress * 2);
+
+  // fade pill ตอน drag
+  if (activeDragBox.pill) {
+    activeDragBox.pill.style.opacity = Math.max(0, 1 - progress * 3);
+  }
 }, { passive: false });
 
 gestureBar.addEventListener('touchend', () => {
@@ -786,15 +830,16 @@ gestureBar.addEventListener('touchend', () => {
     closeBox(activeDragBox);
   } else {
     activeDragBox.state = 'open';
-    activeDragBox.el.style.transition = `transform ${SNAP_MS}ms ${EASE_OUT_SMOOTH}`;
+    activeDragBox.el.style.transition = 'transform ' + SNAP_MS + 'ms ' + EASE_OUT_SMOOTH;
     activeDragBox.el.style.transform = 'none';
-    activeDragBox.web.style.transition = `border-radius ${SNAP_MS}ms ${EASE_OUT_SMOOTH}`;
-    activeDragBox.web.style.borderRadius = '0px';
+    activeDragBox.web.style.transition = 'border-radius ' + SNAP_MS + 'ms ' + EASE_OUT_SMOOTH;
+    activeDragBox.web.style.borderRadius = '0px / 0px';
     bgOverlay.style.opacity = '';
     bgOverlay.classList.add('active');
     dockWrap.classList.add('hidden');
     activeDragBox.dragCurrentX = 0;
     activeDragBox.dragCurrentY = 0;
+    if (activeDragBox.pill) activeDragBox.pill.style.opacity = '1';
     updateGlobalUI();
   }
   activeDragBox = null;
@@ -842,7 +887,7 @@ document.addEventListener('mousemove', (e) => {
   lastMoveY = y;
   lastMoveTime = now;
 
-  // ── Sticky drag: ยิ่งลากไกลยิ่งหนึด ──
+  // ── Sticky drag ──
   const rawX = x - dragStartX;
   const rawY = y - dragStartY;
   const sticky = applySticky(rawX, rawY);
@@ -852,11 +897,16 @@ document.addEventListener('mousemove', (e) => {
   const dist = Math.sqrt(sticky.x * sticky.x + sticky.y * sticky.y);
   const maxDim = Math.max(window.innerWidth, window.innerHeight);
   const progress = Math.min(dist / maxDim, 1);
-  const scale = 1 - progress * 0.15;
+  const scale = 1 - progress * DRAG_SHRINK;
 
-  activeDragBox.el.style.transform = `translate(${sticky.x}px, ${sticky.y}px) scale(${scale})`;
-  activeDragBox.web.style.borderRadius = calcRadius(progress, scale) + 'px';
+  activeDragBox.el.style.transform = 'translate(' + sticky.x + 'px,' + sticky.y + 'px) scale(' + scale + ')';
+  activeDragBox.web.style.borderRadius = calcRadius(progress, scale, scale);
   bgOverlay.style.opacity = Math.max(0, 1 - progress * 2);
+
+  // fade pill ตอน drag
+  if (activeDragBox.pill) {
+    activeDragBox.pill.style.opacity = Math.max(0, 1 - progress * 3);
+  }
 });
 
 document.addEventListener('mouseup', () => {
@@ -865,15 +915,16 @@ document.addEventListener('mouseup', () => {
     closeBox(activeDragBox);
   } else {
     activeDragBox.state = 'open';
-    activeDragBox.el.style.transition = `transform ${SNAP_MS}ms ${EASE_OUT_SMOOTH}`;
+    activeDragBox.el.style.transition = 'transform ' + SNAP_MS + 'ms ' + EASE_OUT_SMOOTH;
     activeDragBox.el.style.transform = 'none';
-    activeDragBox.web.style.transition = `border-radius ${SNAP_MS}ms ${EASE_OUT_SMOOTH}`;
-    activeDragBox.web.style.borderRadius = '0px';
+    activeDragBox.web.style.transition = 'border-radius ' + SNAP_MS + 'ms ' + EASE_OUT_SMOOTH;
+    activeDragBox.web.style.borderRadius = '0px / 0px';
     bgOverlay.style.opacity = '';
     bgOverlay.classList.add('active');
     dockWrap.classList.add('hidden');
     activeDragBox.dragCurrentX = 0;
     activeDragBox.dragCurrentY = 0;
+    if (activeDragBox.pill) activeDragBox.pill.style.opacity = '1';
     updateGlobalUI();
   }
   activeDragBox = null;
@@ -883,11 +934,11 @@ document.addEventListener('mouseup', () => {
 //  ICON CLICK
 // ═══════════════════════════════════════════════════════════
 
-document.getElementById('btnSettings').addEventListener('click', () => {
-  openApp(document.getElementById('btnSettings'), 'settings.html');
-});
-document.getElementById('btnYouTube').addEventListener('click', () => {
-  openApp(document.getElementById('btnYouTube'), 'youtube.html');
+document.querySelectorAll('.app-icon').forEach(icon => {
+  icon.addEventListener('click', () => {
+    const url = APP_URLS[icon.id] || icon.dataset.url;
+    openApp(icon, url);
+  });
 });
 
 // ═══════════════════════════════════════════════════════════
