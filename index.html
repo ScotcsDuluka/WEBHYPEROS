@@ -26,17 +26,23 @@ img.wallpaper {
   will-change: filter, transform;
 }
 img.wallpaper.blurred {
-  filter: blur(28px) brightness(0.65);
+  filter: brightness(0.75) saturate(1.1);
   transform: scale(1.18);
 }
 .bg-overlay {
   position: fixed; top: 0; left: 0;
   width: 100%; height: 100%;
-  background: rgba(0,0,0,0.35); z-index: 15;
+  background: rgba(0,0,0,0.08); z-index: 15;
+  backdrop-filter: blur(0px);
+  -webkit-backdrop-filter: blur(0px);
   opacity: 0; pointer-events: none; cursor: pointer;
-  transition: opacity 0.5s ease;
+  transition: opacity 0.5s cubic-bezier(0.16,1,0.3,1), backdrop-filter 0.5s cubic-bezier(0.16,1,0.3,1), -webkit-backdrop-filter 0.5s cubic-bezier(0.16,1,0.3,1);
 }
-.bg-overlay.active { opacity: 1; pointer-events: auto; }
+.bg-overlay.active {
+  opacity: 1; pointer-events: auto;
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+}
 
 /* ─── Dock ─── */
 .dock-wrap {
@@ -132,6 +138,15 @@ img.wallpaper.blurred {
   pointer-events: none; z-index: 5; opacity: 1;
 }
 
+/* ─── Screen Corners ─── */
+.screen-corners {
+  position: fixed; top: 0; left: 0;
+  width: 100%; height: 100%;
+  border-radius: 44px;
+  box-shadow: 0 0 0 100vmax #000;
+  pointer-events: none; z-index: 9999;
+}
+
 /* ─── Gesture Bar ─── */
 .gesture-bar {
   position: fixed; bottom: 0; left: 50%;
@@ -164,6 +179,7 @@ img.wallpaper.blurred {
   <div class="box-gesture-pill" id="boxPill1"></div>
 </div>
 
+<div class="screen-corners"></div>
 <div class="gesture-bar" id="gestureBar"></div>
 
 <div class="dock-wrap" id="dockWrap">
