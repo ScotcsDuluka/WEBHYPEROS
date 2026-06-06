@@ -278,6 +278,7 @@ const VELOCITY_CLOSE = 0.35;
 const SPEED = 4.5;
 const FLING = 1.8;
 const DRAG_SHRINK = 0.30;
+const R_FULL = 44;
 
 // ═══════════════════════════════════════════════════════════
 //  HELPERS
@@ -292,12 +293,13 @@ function getIconTransform(iconRect) {
 }
 
 function calcRadiusXY(progress, sx, sy) {
-  const v = progress * R_ICON;
+  const v = R_FULL * (1 - progress) + R_ICON * progress;
   return (v / Math.max(0.01, sx)) + 'px / ' + (v / Math.max(0.01, sy)) + 'px';
 }
 
 function calcRadius(progress, scale) {
-  return (progress * R_ICON) / Math.max(0.01, scale) + 'px';
+  const v = R_FULL * (1 - progress) + R_ICON * progress;
+  return (v / Math.max(0.01, scale)) + 'px';
 }
 
 function shouldClose() {
@@ -447,7 +449,7 @@ function openApp(iconEl, url) {
       box.rafId = requestAnimationFrame(tickOpen);
     } else {
       box.el.style.transform = 'none';
-      box.web.style.borderRadius = '0px';
+      box.web.style.borderRadius = '16px';
       box.iconLayer.classList.remove('visible');
       box.state = 'open';
       box.rafId = null;
@@ -586,7 +588,7 @@ function finishBoxClose(box) {
   box.el.classList.remove('z-closing');
   box.el.classList.add('z-open');
   box.web.style.opacity = '1';
-  box.web.style.borderRadius = '0px';
+  box.web.style.borderRadius = '16px';
   box.web.style.background = '#fff';
   box.web.style.transition = 'none';
   box.iconLayer.classList.remove('visible');
@@ -614,7 +616,7 @@ function forceResetBox(box) {
   box.el.classList.remove('z-closing');
   box.el.classList.add('z-open');
   box.web.style.opacity = '1';
-  box.web.style.borderRadius = '0px';
+  box.web.style.borderRadius = '16px';
   box.web.style.background = '#fff';
   box.web.style.transition = 'none';
   box.iconLayer.classList.remove('visible');
@@ -685,7 +687,7 @@ function endDrag() {
     activeDragBox.el.style.transition = 'transform ' + SNAP_MS + 'ms cubic-bezier(0.16, 1, 0.3, 1)';
     activeDragBox.el.style.transform = 'none';
     activeDragBox.web.style.transition = 'border-radius ' + SNAP_MS + 'ms cubic-bezier(0.16, 1, 0.3, 1)';
-    activeDragBox.web.style.borderRadius = '0px';
+    activeDragBox.web.style.borderRadius = '16px';
     activeDragBox.web.style.background = '#fff';
     bgOverlay.style.opacity = '';
     bgOverlay.classList.add('active');
