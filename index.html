@@ -748,6 +748,25 @@ function startDrag(ob, sx, sy) {
       ob.dragBaseSy = ob._expandFromSy + (1 - ob._expandFromSy) * et;
       ob.dragBaseTx = ob._expandFromTx + (0 - ob._expandFromTx) * et;
       ob.dragBaseTy = ob._expandFromTy + (0 - ob._expandFromTy) * et;
+      // ★ render ทันที — ใช้ dragCurrentX/Y ปัจจุบัน
+      const dx = ob.dragCurrentX, dy = ob.dragCurrentY;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      const maxD = Math.max(innerWidth, innerHeight);
+      const progress = Math.min(dist/maxD, 1);
+      let dragScale;
+      if (progress <= 0.4) { dragScale = 1 - progress * 1.5; }
+      else { dragScale = Math.max(0.08, 0.4 - (progress - 0.4) / 0.3 * 0.2); }
+      const curSx = ob.dragBaseSx * dragScale;
+      const curSy = ob.dragBaseSy * dragScale;
+      const curTx = ob.dragBaseTx + dx;
+      const curTy = ob.dragBaseTy + dy;
+      const halfW = innerWidth / 2 * (1 - dragScale);
+      const halfH = innerHeight / 2 * (1 - dragScale);
+      const boxW = innerWidth * curSx, boxH = innerHeight * curSy;
+      let finalX = Math.max(0, Math.min(curTx + halfW, innerWidth - boxW));
+      let finalY = Math.max(0, Math.min(curTy + halfH, innerHeight - boxH));
+      ob.el.style.transform = 'translate('+finalX+'px,'+finalY+'px) scale('+curSx+','+curSy+')';
+      ob.web.style.borderRadius = calcRadiusXY(radiusFromScale(Math.min(curSx, curSy), 0.07), curSx, curSy);
       if (t < 1) ob._expandRaf = requestAnimationFrame(tickExpand);
       else ob._expandRaf = null;
     }
