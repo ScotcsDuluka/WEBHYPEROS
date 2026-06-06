@@ -80,7 +80,7 @@ img.wallpaper {
 /* ─── App Icon (ใน dock) ─── */
 .app-icon {
   width: 52px; height: 52px;
-  border-radius: 42px;
+  border-radius: 15px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -96,7 +96,7 @@ img.wallpaper {
   top: 0; left: 0; right: 0;
   height: 50%;
   background: linear-gradient(180deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.04) 100%);
-  border-radius: 40px 40px 0 0;
+  border-radius: 15px 15px 0 0;
   pointer-events: none;
 }
 .app-icon svg { position: relative; z-index: 1; }
@@ -418,7 +418,7 @@ function moveIconToBox(iconEl, box) {
   let ph = dockPlaceholders.get(iconId);
   if (!ph) {
     ph = document.createElement('div');
-    ph.style.cssText = 'width:52px;height:52px;flex-shrink:0;border-radius:42px;cursor:pointer;';
+    ph.style.cssText = 'width:52px;height:52px;flex-shrink:0;border-radius:15px;cursor:pointer;';
     dockPlaceholders.set(iconId, ph);
   }
   ph.onclick = () => { openApp(iconEl, APP_URLS[iconId]); };
