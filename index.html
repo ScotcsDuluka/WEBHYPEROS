@@ -93,7 +93,7 @@ img.wallpaper.blurred {
   z-index: 4; pointer-events: none;
   opacity: 0; overflow: hidden;
   will-change: border-radius, opacity;
-  transition: opacity 0.1s ease;
+  transition: none;
   display: flex; align-items: center; justify-content: center;
 }
 .icon-layer.visible { opacity: 1; }
@@ -188,8 +188,8 @@ const APP_URLS = {
 //  BOX POOL
 // ═══════════════════════════════════════════════════════════
 const boxPool = [
-  { idx:0, el:document.getElementById('boxAnim0'), web:document.getElementById('boxWeb0'), frame:document.getElementById('appFrame0'), pill:document.getElementById('boxPill0'), iconLayer:document.getElementById('iconLayer0'), state:'idle', iconId:null, target:null, iconImgSrc:null, rafId:null, openTimer:null, dragCurrentX:0, dragCurrentY:0 },
-  { idx:1, el:document.getElementById('boxAnim1'), web:document.getElementById('boxWeb1'), frame:document.getElementById('appFrame1'), pill:document.getElementById('boxPill1'), iconLayer:document.getElementById('iconLayer1'), state:'idle', iconId:null, target:null, iconImgSrc:null, rafId:null, openTimer:null, dragCurrentX:0, dragCurrentY:0 }
+  { idx:0, el:document.getElementById('boxAnim0'), web:document.getElementById('boxWeb0'), frame:document.getElementById('appFrame0'), pill:document.getElementById('boxPill0'), iconLayer:document.getElementById('iconLayer0'), state:'idle', iconId:null, target:null, iconImgSrc:null, rafId:null, openTimer:null, dragCurrentX:0, dragCurrentY:0, dragBaseTx:0, dragBaseTy:0, dragBaseSx:1, dragBaseSy:1 },
+  { idx:1, el:document.getElementById('boxAnim1'), web:document.getElementById('boxWeb1'), frame:document.getElementById('appFrame1'), pill:document.getElementById('boxPill1'), iconLayer:document.getElementById('iconLayer1'), state:'idle', iconId:null, target:null, iconImgSrc:null, rafId:null, openTimer:null, dragCurrentX:0, dragCurrentY:0, dragBaseTx:0, dragBaseTy:0, dragBaseSx:1, dragBaseSy:1 }
 ];
 
 let appState = 'closed';
@@ -549,6 +549,22 @@ function startDrag(ob, sx, sy) {
   activeDragBox = ob;
   dragStartX=sx; dragStartY=sy; lastMoveX=sx; lastMoveY=sy;
   lastMoveTime = performance.now(); velocityX=0; velocityY=0;
+
+  // ★ ถ้ากำลัง opening ให้จับตำแหน่งปัจจุบันเป็นฐาน
+  if (ob.state === 'opening') {
+    if (ob.rafId) { cancelAnimationFrame(ob.rafId); ob.rafId = null; }
+    const rect = ob.el.getBoundingClientRect();
+    ob.dragBaseTx = rect.left;
+    ob.dragBaseTy = rect.top;
+    ob.dragBaseSx = rect.width / innerWidth;
+    ob.dragBaseSy = rect.height / innerHeight;
+  } else {
+    ob.dragBaseTx = 0;
+    ob.dragBaseTy = 0;
+    ob.dragBaseSx = 1;
+    ob.dragBaseSy = 1;
+  }
+
   ob.state = 'dragging'; ob.dragCurrentX=0; ob.dragCurrentY=0;
   appState = 'dragging';
   dockWrap.classList.remove('hidden');
@@ -567,9 +583,14 @@ function moveDrag(x, y) {
   const dist=Math.sqrt(s.x*s.x+s.y*s.y);
   const maxD=Math.max(innerWidth,innerHeight);
   const progress=Math.min(dist/maxD,1);
-  const scale=1-progress*DRAG_SHRINK;
-  activeDragBox.el.style.transform='translate('+s.x+'px,'+s.y+'px) scale('+scale+')';
-  activeDragBox.web.style.borderRadius=calcRadius(progress,scale);
+  const dragScale=1-progress*DRAG_SHRINK;
+  // ★ คำนวณจากฐาน + drag offset
+  const curTx = activeDragBox.dragBaseTx + s.x;
+  const curTy = activeDragBox.dragBaseTy + s.y;
+  const curSx = activeDragBox.dragBaseSx * dragScale;
+  const curSy = activeDragBox.dragBaseSy * dragScale;
+  activeDragBox.el.style.transform='translate('+curTx+'px,'+curTy+'px) scale('+curSx+','+curSy+')';
+  activeDragBox.web.style.borderRadius=calcRadiusXY(progress,curSx,curSy);
   bgOverlay.style.opacity=Math.max(0,1-progress*2);
   if(activeDragBox.pill) activeDragBox.pill.style.opacity=Math.max(0,1-progress*3);
 }
