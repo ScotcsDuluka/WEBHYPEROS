@@ -486,7 +486,7 @@ function closeBox(box) {
   const flingHeight = FLING * (Math.max(swipeSpeed, 0.05) * 0.5 + 0.06) * H;
   let oYVel = -4 * FLING;
 
-  const pStiff = 15 * SPEED * SPEED, pDamp = 9 * SPEED;
+  const pStiff = 12 * SPEED * SPEED, pDamp = 9 * SPEED;
   const oStiff = 20 * SPEED * SPEED, oDamp = 10 * SPEED;
 
   box.el.classList.add('passthrough');
