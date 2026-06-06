@@ -231,6 +231,15 @@ function applySticky(rawX,rawY) {
   const FX=W*.1, DX=W*.4; let sx=rawX;
   const ax=Math.abs(rawX);
   if(ax>FX){const e=ax-FX; const c=FX+DX*(1-1/(1+e/DX)); sx=rawX>0?c:-c;}
+  // ★ ความหนืด: ยิ่งขยับไกลยิ่งต้าน — บีบผลลัพธ์ด้วย power curve
+  const sDist = Math.sqrt(sx*sx + sy*sy);
+  const refD = H * 0.35; // ระยะที่เริ่มรู้สึกหนืด
+  if (sDist > 0) {
+    const ratio = sDist / refD;
+    const viscous = 1 / (1 + ratio * ratio * 0.8); // 1→0.6→0.3 ยิ่งไกลยิ่งหนืด
+    sx *= viscous;
+    sy *= viscous;
+  }
   return {x:sx, y:sy};
 }
 function easeOutSmooth(t){
@@ -600,7 +609,8 @@ function moveDrag(x, y) {
   const dist=Math.sqrt(s.x*s.x+s.y*s.y);
   const maxD=Math.max(innerWidth,innerHeight);
   const progress=Math.min(dist/maxD,1);
-  const dragScale=1-progress*DRAG_SHRINK;
+  // ★ ยิ่งลากเยอะยิ่งเล็กเร็วขึ้น (power curve)
+  const dragScale=1-Math.pow(progress,1.5)*0.75;
   // ★ คำนวณจากฐาน + drag offset
   const curTx = activeDragBox.dragBaseTx + s.x;
   const curTy = activeDragBox.dragBaseTy + s.y;
