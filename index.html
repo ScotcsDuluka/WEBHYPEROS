@@ -273,7 +273,12 @@ function openApp(iconEl, url) {
   const iconId = iconEl.id;
   const activeBox = findActiveBox();
   if (activeBox && activeBox.iconId === iconId) { closeBox(activeBox); return; }
-  boxPool.forEach(b => { if (b.state !== 'idle') forceResetBox(b); });
+  // ★ ปิด box แบบต่อเนื่อง ไม่ force reset
+  boxPool.forEach(b => {
+    if (b.state === 'idle') return;
+    if (b.state === 'opening' || b.state === 'open') { closeBox(b); }
+    else { forceResetBox(b); }
+  });
   const box = findIdleBox();
   if (!box) return;
 
@@ -369,6 +374,10 @@ function closeBox(box) {
   box.state = 'closing';
   if (box.openTimer) { clearTimeout(box.openTimer); box.openTimer = null; }
   if (box.rafId) { cancelAnimationFrame(box.rafId); box.rafId = null; }
+
+  // ★ รีเซ็ต web opacity สำหรับกรณีมาจาก opening
+  box.web.style.opacity = '1';
+  box.web.style.background = '#fff';
 
   const W=innerWidth, H=innerHeight;
   const rect = box.el.getBoundingClientRect();
