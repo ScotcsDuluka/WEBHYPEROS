@@ -231,17 +231,19 @@ function applySticky(rawX,rawY) {
   const FX=W*.1, DX=W*.4; let sx=rawX;
   const ax=Math.abs(rawX);
   if(ax>FX){const e=ax-FX; const c=FX+DX*(1-1/(1+e/DX)); sx=rawX>0?c:-c;}
-  // ★ ความหนืด: 0-50% ไม่หนืด, 50-80% กลาง, 80%+ แรง
+  // ★ ความหนืด: 0-20% ไม่หนืด, 20-40% → ~60%, 60%+ แรง
   const sDist = Math.sqrt(sx*sx + sy*sy);
   const maxD = Math.max(H, W);
   const rawRatio = Math.min(sDist / maxD, 1);
   let viscous;
   if (rawRatio <= 0.2) {
     viscous = 1; // ไม่หนืด
-  } else if (rawRatio <= 0.5) {
-    viscous = 1 - (rawRatio - 0.2) / 0.3 * 0.5; // 1→0.5 กลาง
+  } else if (rawRatio <= 0.4) {
+    viscous = 1 - (rawRatio - 0.2) / 0.2 * 0.4; // 1→0.6
+  } else if (rawRatio <= 0.6) {
+    viscous = 0.6 - (rawRatio - 0.4) / 0.2 * 0.3; // 0.6→0.3
   } else {
-    viscous = Math.max(0.1, 0.5 - (rawRatio - 0.5) / 0.5 * 0.4); // 0.5→0.1 แรง
+    viscous = Math.max(0.05, 0.3 - (rawRatio - 0.6) / 0.4 * 0.25); // 0.3→0.05 แรง
   }
   sx *= viscous;
   sy *= viscous;
@@ -621,12 +623,15 @@ function moveDrag(x, y) {
   } else {
     dragScale = Math.max(0.08, 0.4 - (progress - 0.4) / 0.3 * 0.2); // 40%→20%
   }
-  // ★ คำนวณจากฐาน + drag offset
+  // ★ BOX ตามมือ + หดเข้าตรงกลางเฟรม (ชดเชย scale origin 0,0)
   const curTx = activeDragBox.dragBaseTx + s.x;
   const curTy = activeDragBox.dragBaseTy + s.y;
   const curSx = activeDragBox.dragBaseSx * dragScale;
   const curSy = activeDragBox.dragBaseSy * dragScale;
-  activeDragBox.el.style.transform='translate('+curTx+'px,'+curTy+'px) scale('+curSx+','+curSy+')';
+  // ชดเชย: เมื่อ scale ลด ขอบล่าง/ขวาจะหดเข้า → ดึงกลับให้กลางเฟรม
+  const halfW = innerWidth / 2 * (1 - dragScale);
+  const halfH = innerHeight / 2 * (1 - dragScale);
+  activeDragBox.el.style.transform='translate('+(curTx+halfW)+'px,'+(curTy+halfH)+'px) scale('+curSx+','+curSy+')';
   activeDragBox.web.style.borderRadius=calcRadiusXY(progress,curSx,curSy);
   bgOverlay.style.opacity=Math.max(0,1-progress*2);
   if(activeDragBox.pill) activeDragBox.pill.style.opacity=Math.max(0,1-progress*3);
