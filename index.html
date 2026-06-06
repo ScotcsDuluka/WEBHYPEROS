@@ -17,55 +17,32 @@ html, body {
   overscroll-behavior: none;
   font-family: -apple-system, "SF Pro Display", "Noto Sans SC", system-ui, sans-serif;
 }
-
-/* ─── Wallpaper ─── */
 img.wallpaper {
-  position: fixed;
-  top: 0; left: 0;
+  position: fixed; top: 0; left: 0;
   width: 100%; height: 100%;
-  object-fit: cover;
-  object-position: center;
-  user-select: none;
-  -webkit-user-drag: none;
-  pointer-events: none;
+  object-fit: cover; object-position: center;
+  user-select: none; -webkit-user-drag: none; pointer-events: none;
 }
-
-/* ─── Background Overlay ─── */
 .bg-overlay {
-  position: fixed;
-  top: 0; left: 0;
+  position: fixed; top: 0; left: 0;
   width: 100%; height: 100%;
-  background: rgba(0,0,0,0.35);
-  z-index: 15;
-  opacity: 0;
-  pointer-events: none;
-  cursor: pointer;
+  background: rgba(0,0,0,0.35); z-index: 15;
+  opacity: 0; pointer-events: none; cursor: pointer;
   transition: opacity 0.5s ease;
 }
-.bg-overlay.active {
-  opacity: 1;
-  pointer-events: auto;
-}
+.bg-overlay.active { opacity: 1; pointer-events: auto; }
 
 /* ─── Dock ─── */
 .dock-wrap {
-  position: fixed;
-  bottom: 68px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 10;
-  transition: opacity 0.45s ease, transform 0.45s ease;
+  position: fixed; bottom: 68px; left: 50%;
+  transform: translateX(-50%); z-index: 10;
+  transition: opacity 0.35s ease, transform 0.35s ease;
 }
 .dock-wrap.hidden {
-  opacity: 0;
-  transform: translateX(-50%) translateY(30px);
-  pointer-events: none;
+  opacity: 0; transform: translateX(-50%) translateY(30px); pointer-events: none;
 }
 .dock {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  padding: 13px 13px;
+  display: flex; align-items: center; gap: 18px; padding: 13px;
   border-radius: 29px;
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(255,255,255,0.08);
@@ -74,108 +51,98 @@ img.wallpaper {
   position: relative;
 }
 .dock::before {
-  content: '';
-  position: absolute;
-  top: -1px; left: 15%; right: 15%;
-  height: 1px;
+  content: ''; position: absolute;
+  top: -1px; left: 15%; right: 15%; height: 1px;
   background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
 }
 
-/* ─── App Icon (ใน dock) ─── */
+/* ─── App Icon (dock) ─── */
 .app-icon {
-  width: 52px; height: 52px;
-  border-radius: 15px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: transform 0.15s ease, opacity 0.2s ease;
-  position: relative;
-  overflow: hidden;
-  flex-shrink: 0;
+  width: 52px; height: 52px; border-radius: 15px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; position: relative; overflow: hidden; flex-shrink: 0;
+  transition: transform 0.15s ease, opacity 0.15s ease;
 }
-.app-icon:active { transform: scale(0.88); }
 .app-icon::after {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 50%;
+  content: ''; position: absolute;
+  top: 0; left: 0; right: 0; height: 50%;
   background: linear-gradient(180deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.04) 100%);
-  border-radius: 15px 15px 0 0;
-  pointer-events: none;
+  border-radius: 15px 15px 0 0; pointer-events: none;
 }
 .app-icon svg { position: relative; z-index: 1; }
 
 /* ─── BOX_anim ─── */
 .box-anim {
-  position: fixed;
-  top: 0; left: 0;
+  position: fixed; top: 0; left: 0;
   width: 100%; height: 100%;
-  display: none;
-  transform-origin: 0 0;
+  display: none; transform-origin: 0 0;
   will-change: transform;
 }
 .box-anim.passthrough { pointer-events: none; }
 .box-anim.z-closing { z-index: 20; }
 .box-anim.z-open    { z-index: 22; }
 
-/* Box WEB */
-.box-web {
-  position: absolute;
-  top: 0; left: 0;
+/* ─── Icon Layer — โคลนหน้าตา icon จาก dock ─── */
+.icon-layer {
+  position: absolute; top: 0; left: 0;
   width: 100%; height: 100%;
-  background: #fff;
-  overflow: hidden;
-  will-change: border-radius;
+  z-index: 4; pointer-events: none;
+  opacity: 0; overflow: hidden;
+  will-change: border-radius, opacity;
+  display: flex; align-items: center; justify-content: center;
+}
+.icon-layer.visible { opacity: 1; }
+.icon-layer svg {
+  width: 52%; height: 52%;
+  position: relative; z-index: 1;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));
+}
+.icon-layer::after {
+  content: ''; position: absolute;
+  top: 0; left: 0; right: 0; height: 50%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.04) 100%);
+  pointer-events: none; z-index: 2;
+}
+
+/* ─── Box WEB ─── */
+.box-web {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: #fff; overflow: hidden;
+  will-change: border-radius; z-index: 2;
 }
 .box-web iframe {
-  width: 100%; height: 100%;
-  border: none; display: block;
+  width: 100%; height: 100%; border: none; display: block;
 }
 .box-anim.passthrough .box-web,
-.box-anim.passthrough iframe {
-  pointer-events: none;
-}
+.box-anim.passthrough iframe { pointer-events: none; }
 
-/* ─── Gesture Pill ใน BOX_anim ─── */
+/* ─── Gesture Pill ─── */
 .box-gesture-pill {
-  position: absolute;
-  bottom: 12px;
-  left: 50%;
+  position: absolute; bottom: 12px; left: 50%;
   transform: translateX(-50%);
-  width: 200px;
-  height: 5px;
-  border-radius: 3px;
-  background: #fff;
-  mix-blend-mode: difference;
-  pointer-events: none;
-  z-index: 5;
-  opacity: 1;
+  width: 200px; height: 5px; border-radius: 3px;
+  background: #fff; mix-blend-mode: difference;
+  pointer-events: none; z-index: 5; opacity: 1;
 }
 
-/* ─── Gesture Bar (touch + mouse area) ─── */
+/* ─── Gesture Bar ─── */
 .gesture-bar {
-  position: fixed;
-  bottom: 0;
-  left: 50%;
+  position: fixed; bottom: 0; left: 50%;
   transform: translateX(-50%);
-  width: 100%;
-  height: 60px;
-  z-index: 50;
-  touch-action: none;
-  cursor: pointer;
+  width: 100%; height: 60px;
+  z-index: 50; touch-action: none; cursor: pointer;
 }
-.gesture-bar:active { cursor: pointer; }
 </style>
 </head>
 <body>
 
 <img class="wallpaper" src="https://mir-s3-cdn-cf.behance.net/project_modules/1400_webp/4b5d40216256937.67b492e0e7551.jpg" alt="">
-
 <div class="bg-overlay" id="bgOverlay"></div>
 
 <!-- BOX_anim A -->
 <div class="box-anim z-open" id="boxAnim0">
+  <div class="icon-layer" id="iconLayer0"></div>
   <div class="box-web" id="boxWeb0">
     <iframe id="appFrame0" src="" allow="autoplay; fullscreen"></iframe>
   </div>
@@ -184,38 +151,28 @@ img.wallpaper {
 
 <!-- BOX_anim B -->
 <div class="box-anim z-open" id="boxAnim1">
+  <div class="icon-layer" id="iconLayer1"></div>
   <div class="box-web" id="boxWeb1">
     <iframe id="appFrame1" src="" allow="autoplay; fullscreen"></iframe>
   </div>
   <div class="box-gesture-pill" id="boxPill1"></div>
 </div>
 
-<!-- Gesture Bar -->
 <div class="gesture-bar" id="gestureBar"></div>
 
-<!-- Dock -->
 <div class="dock-wrap" id="dockWrap">
   <div class="dock">
-    <div class="app-icon" style="background: linear-gradient(145deg, #CFD8DC, #546E7A);" id="btnSettings" data-url="settings.html">
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="white" fill-opacity=".88">
-        <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.49.49 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 00-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1112 8.4a3.6 3.6 0 010 7.2z"/>
-      </svg>
+    <div class="app-icon" style="background:linear-gradient(145deg,#CFD8DC,#546E7A)" id="btnSettings">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="white" fill-opacity=".88"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.49.49 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 00-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1112 8.4a3.6 3.6 0 010 7.2z"/></svg>
     </div>
-    <div class="app-icon" style="background: linear-gradient(145deg, #EF9A9A, #C62828);" id="btnYouTube" data-url="youtube.html">
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="white" fill-opacity=".9">
-        <path d="M10 15l5.19-3L10 9v6m11.56-7.83c.13.47.22 1.1.28 1.9.07.8.1 1.49.1 2.09L22 12c0 2.19-.16 3.8-.44 4.83-.25.9-.83 1.48-1.73 1.73-.47.13-1.33.22-2.65.28-1.3.07-2.49.1-3.59.1L12 19c-4.19 0-6.8-.16-7.83-.44-.9-.25-1.48-.83-1.73-1.73-.13-.47-.22-1.1-.28-1.9-.07-.8-.1-1.49-.1-2.09L2 12c0-2.19.16-3.8.44-4.83.25-.9.83-1.48 1.73-1.73.47-.13 1.33-.22 2.65-.28 1.3-.07 2.49-.1 3.59-.1L12 5c4.19 0 6.8.16 7.83.44.9.25 1.48.83 1.73 1.73z"/>
-      </svg>
+    <div class="app-icon" style="background:linear-gradient(145deg,#EF9A9A,#C62828)" id="btnYouTube">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="white" fill-opacity=".9"><path d="M10 15l5.19-3L10 9v6m11.56-7.83c.13.47.22 1.1.28 1.9.07.8.1 1.49.1 2.09L22 12c0 2.19-.16 3.8-.44 4.83-.25.9-.83 1.48-1.73 1.73-.47.13-1.33.22-2.65.28-1.3.07-2.49.1-3.59.1L12 19c-4.19 0-6.8-.16-7.83-.44-.9-.25-1.48-.83-1.73-1.73-.13-.47-.22-1.1-.28-1.9-.07-.8-.1-1.49-.1-2.09L2 12c0-2.19.16-3.8.44-4.83.25-.9.83-1.48 1.73-1.73.47-.13 1.33-.22 2.65-.28 1.3-.07 2.49-.1 3.59-.1L12 5c4.19 0 6.8.16 7.83.44.9.25 1.48.83 1.73 1.73z"/></svg>
     </div>
-    <div class="app-icon" style="background: linear-gradient(145deg, #90A4AE, #37474F);" id="btnCamera" data-url="camera.html">
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="white" fill-opacity=".88">
-        <path d="M12 15.2a3.2 3.2 0 100-6.4 3.2 3.2 0 000 6.4z"/>
-        <path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/>
-      </svg>
+    <div class="app-icon" style="background:linear-gradient(145deg,#90A4AE,#37474F)" id="btnCamera">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="white" fill-opacity=".88"><path d="M12 15.2a3.2 3.2 0 100-6.4 3.2 3.2 0 000 6.4z"/><path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
     </div>
-    <div class="app-icon" style="background: linear-gradient(145deg, #FFCC80, #E65100);" id="btnCalc" data-url="calculator.html">
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="white" fill-opacity=".88">
-        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7.5 4h5v2h-5V7zm0 4h5v2h-5v-2zM7 7h2v2H7V7zm0 4h2v2H7v-2zm0 4h2v2H7v-2zm4.5 0h5v2h-5v-2z"/>
-      </svg>
+    <div class="app-icon" style="background:linear-gradient(145deg,#FFCC80,#E65100)" id="btnCalc">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="white" fill-opacity=".88"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7.5 4h5v2h-5V7zm0 4h5v2h-5v-2zM7 7h2v2H7V7zm0 4h2v2H7v-2zm0 4h2v2H7v-2zm4.5 0h5v2h-5v-2z"/></svg>
     </div>
   </div>
 </div>
@@ -224,7 +181,6 @@ img.wallpaper {
 // ═══════════════════════════════════════════════════════════
 //  APP URL MAP
 // ═══════════════════════════════════════════════════════════
-
 function appPage(title, bg, color) {
   return 'data:text/html;charset=utf-8,' + encodeURIComponent(
     '<html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head>' +
@@ -232,7 +188,6 @@ function appPage(title, bg, color) {
     '<p style="color:' + color + ';font-size:28px;font-weight:300">' + title + '</p></body></html>'
   );
 }
-
 const APP_URLS = {
   btnSettings: appPage('Settings', '#f5f5f5', 'rgba(0,0,0,0.12)'),
   btnYouTube:  appPage('YouTube',  '#0f0f0f', 'rgba(255,255,255,0.12)'),
@@ -243,7 +198,6 @@ const APP_URLS = {
 // ═══════════════════════════════════════════════════════════
 //  BOX POOL
 // ═══════════════════════════════════════════════════════════
-
 const boxPool = [
   {
     idx: 0,
@@ -251,10 +205,12 @@ const boxPool = [
     web:   document.getElementById('boxWeb0'),
     frame: document.getElementById('appFrame0'),
     pill:  document.getElementById('boxPill0'),
-    state: 'idle',    // idle | opening | open | dragging | closing
-    iconId: null,     // ★ จำ ID ของ icon ไม่ย้าย DOM
-    target: null,     // ★ จำตำแหน่ง icon ไว้ตอนเปิด
-    iconBg: null,     // ★ จำ background gradient ของ icon
+    iconLayer: document.getElementById('iconLayer0'),
+    state: 'idle',
+    iconId: null,
+    target: null,
+    iconBg: null,
+    iconSvg: null,
     rafId: null,
     openTimer: null,
     dragCurrentX: 0,
@@ -266,10 +222,12 @@ const boxPool = [
     web:   document.getElementById('boxWeb1'),
     frame: document.getElementById('appFrame1'),
     pill:  document.getElementById('boxPill1'),
+    iconLayer: document.getElementById('iconLayer1'),
     state: 'idle',
     iconId: null,
     target: null,
     iconBg: null,
+    iconSvg: null,
     rafId: null,
     openTimer: null,
     dragCurrentX: 0,
@@ -283,40 +241,42 @@ const gestureBar = document.getElementById('gestureBar');
 const dockWrap   = document.getElementById('dockWrap');
 const bgOverlay  = document.getElementById('bgOverlay');
 
-// ─── Velocity ───
 let dragStartX = 0, dragStartY = 0;
 let lastMoveX = 0, lastMoveY = 0, lastMoveTime = 0;
 let velocityX = 0, velocityY = 0;
 let activeDragBox = null;
 
 // ─── Tuning ───
-const R_ICON = 42;
+const R_ICON = 15;  // ★ ตรงกับ border-radius ของ dock icon
 const CLOSE_UP_PX = Math.round(window.innerHeight * 0.08);
-const OPEN_MS = 500;
-const SNAP_MS = 500;
+const OPEN_MS = 420;
+const SNAP_MS = 420;
 const VELOCITY_CLOSE = 0.35;
-const SPEED = 4.5;
+const SPEED = 4.0;  // ★ เร็วขึ้น
 const FLING = 1.8;
-const DRAG_SHRINK = 0.70;
+const DRAG_SHRINK = 0.30;
 
 // ═══════════════════════════════════════════════════════════
 //  HELPERS
 // ═══════════════════════════════════════════════════════════
 
 function getIconTransform(iconRect) {
-  const W = window.innerWidth;
-  const H = window.innerHeight;
-  const sx = iconRect.width / W;
-  const sy = iconRect.height / H;
+  const W = window.innerWidth, H = window.innerHeight;
+  const sx = iconRect.width / W, sy = iconRect.height / H;
   const tx = iconRect.left + iconRect.width / 2 - W * sx / 2;
   const ty = iconRect.top + iconRect.height / 2 - H * sy / 2;
   return { tx, ty, sx, sy };
 }
 
-// ★ border-radius: morph จาก R_ICON (ตอนเล็กเหมือน icon) → 0 (เต็มจอ)
+// ★ Rh/Rv — โค้งตรงทุกทิศแม้ non-uniform scale(sx≠sy)
+function calcRadiusXY(progress, sx, sy) {
+  const v = progress * R_ICON;
+  return (v / Math.max(0.01, sx)) + 'px / ' + (v / Math.max(0.01, sy)) + 'px';
+}
+
+// single-value — ใช้ตอน scale เท่ากัน (drag)
 function calcRadius(progress, scale) {
-  const visualR = progress * R_ICON;
-  return visualR / Math.max(0.01, scale) + 'px';
+  return (progress * R_ICON) / Math.max(0.01, scale) + 'px';
 }
 
 function shouldClose() {
@@ -326,107 +286,95 @@ function shouldClose() {
 }
 
 function applySticky(rawX, rawY) {
-  const H = window.innerHeight;
-  const W = window.innerWidth;
-  const FREE_ZONE_Y = H * 0.40;
-  const DIM_Y = H * 0.2;
+  const H = window.innerHeight, W = window.innerWidth;
+  const FREE_ZONE_Y = H * 0.40, DIM_Y = H * 0.2;
   let sy = rawY;
   if (rawY < 0) {
     const absY = Math.abs(rawY);
-    if (absY <= FREE_ZONE_Y) {
-      sy = rawY;
-    } else {
-      const excess = absY - FREE_ZONE_Y;
-      sy = -(FREE_ZONE_Y + DIM_Y * (1 - 1 / (1 + excess / DIM_Y)));
-    }
+    if (absY <= FREE_ZONE_Y) sy = rawY;
+    else { const ex = absY - FREE_ZONE_Y; sy = -(FREE_ZONE_Y + DIM_Y * (1 - 1/(1+ex/DIM_Y))); }
   }
-  const FREE_ZONE_X = W * 0.1;
-  const DIM_X = W * 0.4;
+  const FREE_ZONE_X = W * 0.1, DIM_X = W * 0.4;
   let sx = rawX;
   const absX = Math.abs(rawX);
   if (absX > FREE_ZONE_X) {
-    const excess = absX - FREE_ZONE_X;
-    const compressed = FREE_ZONE_X + DIM_X * (1 - 1 / (1 + excess / DIM_X));
-    sx = rawX > 0 ? compressed : -compressed;
+    const ex = absX - FREE_ZONE_X;
+    const c = FREE_ZONE_X + DIM_X * (1 - 1/(1+ex/DIM_X));
+    sx = rawX > 0 ? c : -c;
   }
   return { x: sx, y: sy };
 }
 
-function easeOutSmooth(t) {
-  return 1 - Math.pow(1 - t, 2.8);
-}
+function easeOutSmooth(t) { return 1 - Math.pow(1 - t, 2.8); }
 
-function findOpenBox() {
-  return boxPool.find(b => b.state === 'open') || null;
-}
-function findIdleBox() {
-  return boxPool.find(b => b.state === 'idle') || null;
-}
+function findOpenBox()  { return boxPool.find(b => b.state === 'open') || null; }
+function findIdleBox()  { return boxPool.find(b => b.state === 'idle') || null; }
 
 function updateGlobalUI() {
-  const openBox = findOpenBox();
-  const hasOpen = !!openBox;
+  const hasOpen = boxPool.some(b => b.state === 'open');
   const hasBusy = boxPool.some(b => b.state === 'opening' || b.state === 'closing');
-  const shouldHideDock = hasOpen || boxPool.some(b => b.state === 'opening');
-  dockWrap.classList.toggle('hidden', shouldHideDock);
-  if (shouldHideDock) {
-    bgOverlay.classList.add('active');
-    bgOverlay.style.opacity = '';
-  } else {
-    bgOverlay.classList.remove('active');
-    bgOverlay.style.opacity = '';
-  }
+  const hideDock = hasOpen || boxPool.some(b => b.state === 'opening');
+  dockWrap.classList.toggle('hidden', hideDock);
+  if (hideDock) { bgOverlay.classList.add('active'); bgOverlay.style.opacity = ''; }
+  else { bgOverlay.classList.remove('active'); bgOverlay.style.opacity = ''; }
   if (hasOpen) appState = 'open';
   else if (hasBusy) appState = 'transitioning';
   else appState = 'closed';
 }
 
-// ★ ซ่อน/แสดง icon ใน dock (ไม่ย้าย DOM — แก้บัค ICON หด/โค้งผิด)
-function hideDockIcon(iconId) {
-  const icon = document.getElementById(iconId);
-  if (icon) { icon.style.opacity = '0'; icon.style.pointerEvents = 'none'; }
+// ★ ซ่อน/แสดง icon ใน dock (ไม่ย้าย DOM)
+function hideDockIcon(id) {
+  const el = document.getElementById(id);
+  if (el) { el.style.opacity = '0'; el.style.pointerEvents = 'none'; }
 }
-function showDockIcon(iconId) {
-  const icon = document.getElementById(iconId);
-  if (icon) { icon.style.opacity = ''; icon.style.pointerEvents = ''; }
+function showDockIcon(id) {
+  const el = document.getElementById(id);
+  if (el) { el.style.opacity = ''; el.style.pointerEvents = ''; }
+}
+
+// ★ สร้าง icon-layer ให้เหมือน dock icon ทุกประการ
+function setupIconLayer(box, iconEl) {
+  const layer = box.iconLayer;
+  // โคลน SVG
+  layer.innerHTML = iconEl.innerHTML;
+  // โคลน background
+  layer.style.background = iconEl.style.background || getComputedStyle(iconEl).background;
 }
 
 // ═══════════════════════════════════════════════════════════
-//  OPEN APP — icon อยู่ dock เดิม, box-web morph แทน
+//  OPEN APP
 // ═══════════════════════════════════════════════════════════
 
 function openApp(iconEl, url) {
   const iconId = iconEl.id;
 
-  // ถ้ากด icon ตัวเดียวกับที่เปิดอยู่ → ปิด
-  const currentOpen = findOpenBox();
-  if (currentOpen && currentOpen.iconId === iconId) {
-    closeBox(currentOpen);
-    return;
-  }
+  // กด icon ตัวเดียวกัน → ปิด
+  const cur = findOpenBox();
+  if (cur && cur.iconId === iconId) { closeBox(cur); return; }
 
-  // ★ force-reset ทุก box ที่ไม่ idle ทันที (แก้บัคสลับติดขัด)
-  boxPool.forEach(b => {
-    if (b.state !== 'idle') forceResetBox(b);
-  });
+  // ★ force-reset ทุก box ที่ไม่ idle ทันที → สลับเร็ว
+  boxPool.forEach(b => { if (b.state !== 'idle') forceResetBox(b); });
 
-  let box = findIdleBox();
+  const box = findIdleBox();
   if (!box) return;
 
-  // วัดตำแหน่ง icon
+  // ★ จำค่า icon ทั้งหมด
   void document.body.offsetHeight;
   const iconRect = iconEl.getBoundingClientRect();
   const iconTf = getIconTransform(iconRect);
+  const iconBg = iconEl.style.background || getComputedStyle(iconEl).background;
 
-  // ★ จำ background ของ icon เพื่อใช้ตอน morph
-  const iconBgStyle = iconEl.style.background || getComputedStyle(iconEl).background;
+  box.target  = iconTf;
+  box.iconId  = iconId;
+  box.iconBg  = iconBg;
+  box.iconSvg = iconEl.innerHTML;
 
-  box.target = iconTf;
-  box.iconId = iconId;
-  box.iconBg = iconBgStyle;
   hideDockIcon(iconId);
 
-  // ★ Setup — box-web เริ่มด้วย background + border-radius เหมือน icon
+  // ★ สร้าง icon-layer เหมือน dock icon
+  setupIconLayer(box, iconEl);
+
+  // Setup box
   box.el.style.display = 'block';
   box.el.style.transition = 'none';
   box.web.style.transition = 'none';
@@ -435,20 +383,24 @@ function openApp(iconEl, url) {
   box.el.classList.remove('z-closing');
   box.el.classList.add('z-open');
 
-  box.web.style.borderRadius = calcRadius(1, Math.min(iconTf.sx, iconTf.sy));
-  box.web.style.background = iconBgStyle;
+  // ★ icon-layer โผล่ทันที (เหมือน icon ใน dock)
+  const startR = calcRadiusXY(1, iconTf.sx, iconTf.sy);
+  box.iconLayer.classList.add('visible');
+  box.iconLayer.style.borderRadius = startR;
+  box.web.style.borderRadius = startR;
+  box.web.style.background = 'transparent';
   box.web.style.opacity = '1';
   box.pill.style.opacity = '0';
 
   box.frame.src = '';
   void box.el.offsetHeight;
 
-  // ★ rAF opening animation
+  // ★ rAF open animation
   box.state = 'opening';
   const startTime = performance.now();
   const fromTx = iconTf.tx, fromTy = iconTf.ty;
   const fromSx = iconTf.sx, fromSy = iconTf.sy;
-  let bgSwitched = false;
+  let iconFaded = false;
 
   function tickOpen(now) {
     if (box.state !== 'opening') return;
@@ -462,15 +414,18 @@ function openApp(iconEl, url) {
     const curTx = fromTx * (1 - et);
     const curTy = fromTy * (1 - et);
 
-    const minS = Math.min(curSx, curSy);
-    const radiusProgress = 1 - et;
-    box.web.style.borderRadius = calcRadius(radiusProgress, minS);
+    // ★ โค้ง: ใช้ power curve ให้โค้งนานขึ้นตอนกลาง
+    const radiusProgress = Math.pow(1 - et, 0.65);
+    const cssR = calcRadiusXY(radiusProgress, curSx, curSy);
+    box.web.style.borderRadius = cssR;
+    box.iconLayer.style.borderRadius = cssR;
 
     box.el.style.transform = 'translate(' + curTx + 'px,' + curTy + 'px) scale(' + curSx + ',' + curSy + ')';
 
-    // ★ สลับ background: icon gradient → white ที่ ~20%
-    if (!bgSwitched && t > 0.20) {
-      bgSwitched = true;
+    // ★ icon-layer fade out, box-web → white
+    if (!iconFaded && t > 0.25) {
+      iconFaded = true;
+      box.iconLayer.classList.remove('visible');
       box.web.style.background = '#fff';
       box.pill.style.opacity = '1';
     }
@@ -480,7 +435,7 @@ function openApp(iconEl, url) {
     } else {
       box.el.style.transform = 'none';
       box.web.style.borderRadius = '0px';
-      box.web.style.background = '#fff';
+      box.iconLayer.classList.remove('visible');
       box.state = 'open';
       box.rafId = null;
       updateGlobalUI();
@@ -490,7 +445,7 @@ function openApp(iconEl, url) {
   box.rafId = requestAnimationFrame(tickOpen);
 
   if (box.openTimer) clearTimeout(box.openTimer);
-  box.openTimer = setTimeout(() => { box.frame.src = url; box.openTimer = null; }, 100);
+  box.openTimer = setTimeout(() => { box.frame.src = url; box.openTimer = null; }, 80);
 
   box.dragCurrentX = 0;
   box.dragCurrentY = 0;
@@ -498,7 +453,7 @@ function openApp(iconEl, url) {
 }
 
 // ═══════════════════════════════════════════════════════════
-//  CLOSE BOX — spring animation (rAF)
+//  CLOSE BOX — spring animation
 // ═══════════════════════════════════════════════════════════
 
 function closeBox(box) {
@@ -508,52 +463,47 @@ function closeBox(box) {
   if (box.openTimer) { clearTimeout(box.openTimer); box.openTimer = null; }
   if (box.rafId)     { cancelAnimationFrame(box.rafId); box.rafId = null; }
 
-  const W = window.innerWidth;
-  const H = window.innerHeight;
+  const W = window.innerWidth, H = window.innerHeight;
 
   // ★ อ่าน visual state ปัจจุบัน
   const rect = box.el.getBoundingClientRect();
-  const startTx = rect.left;
-  const startTy = rect.top;
-  const startSx = rect.width / W;
-  const startSy = rect.height / H;
+  const startTx = rect.left, startTy = rect.top;
+  const startSx = rect.width / W, startSy = rect.height / H;
 
   box.el.style.transition = 'none';
   box.web.style.transition = 'none';
   box.el.style.transform = 'translate(' + startTx + 'px,' + startTy + 'px) scale(' + startSx + ',' + startSy + ')';
 
+  // ★ Target = ค่าที่จำไว้ตอนเปิด (ตรงกับ dock icon)
   const target = box.target;
   if (!target) { finishBoxClose(box); return; }
 
   const tTx = target.tx, tTy = target.ty, tSx = target.sx, tSy = target.sy;
 
-  let p = 0;
-  let pVel = 5 * SPEED;
+  let p = 0, pVel = 5 * SPEED;
   let oY = 0;
   const swipeSpeed = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
   const flingHeight = FLING * (Math.max(swipeSpeed, 0.05) * 0.5 + 0.06) * H;
   let oYVel = -4 * FLING;
 
-  const pStiff = 15 * SPEED * SPEED;
-  const pDamp  = 9 * SPEED;
-  const oStiff = 20 * SPEED * SPEED;
-  const oDamp  = 10 * SPEED;
+  const pStiff = 15 * SPEED * SPEED, pDamp = 9 * SPEED;
+  const oStiff = 20 * SPEED * SPEED, oDamp = 10 * SPEED;
 
   box.el.classList.add('passthrough');
   box.el.classList.remove('z-open');
   box.el.classList.add('z-closing');
 
-  let totalMs = 0;
-  const maxMs = 1500;
-  let lastTs = null;
-  let settled = false;
-  let iconBgRestored = false;
+  // ★ ตั้งค่า icon-layer ให้พร้อมโผล่ (เหมือน dock icon)
+  box.iconLayer.innerHTML = box.iconSvg;
+  box.iconLayer.style.background = box.iconBg;
+
+  let totalMs = 0, maxMs = 1200, lastTs = null;
+  let settled = false, iconShown = false;
 
   function tick(ts) {
     if (!lastTs) lastTs = ts;
     const frameMs = Math.min(ts - lastTs, 32);
-    lastTs = ts;
-    totalMs += frameMs;
+    lastTs = ts; totalMs += frameMs;
     if (totalMs > maxMs) { finishBoxClose(box); return; }
 
     const steps = Math.max(1, Math.round(frameMs / 4));
@@ -573,15 +523,21 @@ function closeBox(box) {
 
     const clampSx = Math.max(tSx * 0.5, Math.min(1.1, curSx));
     const clampSy = Math.max(tSy * 0.5, Math.min(1.1, curSy));
-    const minS = Math.min(clampSx, clampSy);
 
-    const sizeProgress = Math.max(0, Math.min(1, (1 - minS) / (1 - Math.min(tSx, tSy))));
-    const cssR = calcRadius(sizeProgress, minS);
+    const sizeProgress = Math.max(0, Math.min(1, (1 - Math.min(clampSx, clampSy)) / (1 - Math.min(tSx, tSy))));
 
-    // ★ สลับ background กลับเป็น icon gradient ตอนเล็กลง
-    if (!iconBgRestored && sizeProgress > 0.6 && box.iconBg) {
-      iconBgRestored = true;
-      box.web.style.background = box.iconBg;
+    // ★ โค้ง: power curve ให้โค้งเหมือนตอนเปิด
+    const radiusProgress = Math.pow(sizeProgress, 0.65);
+    const cssR = calcRadiusXY(radiusProgress, clampSx, clampSy);
+
+    // ★ icon-layer โผล่เมื่อเล็กลง → เหมือน dock icon
+    if (!iconShown && sizeProgress > 0.55) {
+      iconShown = true;
+      box.iconLayer.classList.add('visible');
+      box.web.style.background = 'transparent';
+    }
+    if (iconShown) {
+      box.iconLayer.style.borderRadius = cssR;
     }
 
     if (box.pill) box.pill.style.opacity = Math.max(0, 1 - sizeProgress * 2.5);
@@ -595,12 +551,15 @@ function closeBox(box) {
 
     if (!settled && pDist < 0.003 && oYAbs < 0.01 && oYVelAbs < 0.1) {
       settled = true;
-      box.el.style.transition = 'transform 250ms cubic-bezier(0.25, 0, 0.15, 1)';
+      // ★ สไนป์กลับไปที่ตำแหน่ง icon พอดี
+      const finalR = calcRadiusXY(1, tSx, tSy);
+      box.el.style.transition = 'transform 200ms cubic-bezier(0.25, 0, 0.15, 1)';
       box.el.style.transform = 'translate(' + tTx + 'px,' + tTy + 'px) scale(' + tSx + ',' + tSy + ')';
-      box.web.style.transition = 'border-radius 250ms cubic-bezier(0.25, 0, 0.15, 1), opacity 250ms ease';
-      box.web.style.borderRadius = calcRadius(1, Math.min(tSx, tSy));
+      box.web.style.transition = 'border-radius 200ms cubic-bezier(0.25, 0, 0.15, 1), opacity 200ms ease';
+      box.web.style.borderRadius = finalR;
       box.web.style.opacity = '0';
-      setTimeout(() => finishBoxClose(box), 260);
+      box.iconLayer.style.borderRadius = finalR;
+      setTimeout(() => finishBoxClose(box), 220);
       return;
     }
 
@@ -623,6 +582,8 @@ function finishBoxClose(box) {
   box.web.style.borderRadius = '0px';
   box.web.style.background = '#fff';
   box.web.style.transition = 'none';
+  box.iconLayer.classList.remove('visible');
+  box.iconLayer.innerHTML = '';
   box.pill.style.opacity = '1';
   if (box.iconId) showDockIcon(box.iconId);
   box.frame.src = '';
@@ -630,6 +591,7 @@ function finishBoxClose(box) {
   box.iconId = null;
   box.target = null;
   box.iconBg = null;
+  box.iconSvg = null;
   box.dragCurrentX = 0;
   box.dragCurrentY = 0;
   updateGlobalUI();
@@ -648,6 +610,8 @@ function forceResetBox(box) {
   box.web.style.borderRadius = '0px';
   box.web.style.background = '#fff';
   box.web.style.transition = 'none';
+  box.iconLayer.classList.remove('visible');
+  box.iconLayer.innerHTML = '';
   box.pill.style.opacity = '1';
   if (box.iconId) showDockIcon(box.iconId);
   box.frame.src = '';
@@ -655,6 +619,7 @@ function forceResetBox(box) {
   box.iconId = null;
   box.target = null;
   box.iconBg = null;
+  box.iconSvg = null;
   box.dragCurrentX = 0;
   box.dragCurrentY = 0;
   box.rafId = null;
@@ -663,7 +628,7 @@ function forceResetBox(box) {
 }
 
 // ═══════════════════════════════════════════════════════════
-//  GESTURE BAR
+//  GESTURE
 // ═══════════════════════════════════════════════════════════
 
 function startDrag(openBox, startX, startY) {
@@ -685,14 +650,10 @@ function moveDrag(x, y) {
   if (!activeDragBox || activeDragBox.state !== 'dragging') return;
   const now = performance.now();
   const dt = now - lastMoveTime;
-  if (dt > 0) {
-    velocityX = (x - lastMoveX) / dt;
-    velocityY = (y - lastMoveY) / dt;
-  }
+  if (dt > 0) { velocityX = (x - lastMoveX) / dt; velocityY = (y - lastMoveY) / dt; }
   lastMoveX = x; lastMoveY = y; lastMoveTime = now;
 
-  const rawX = x - dragStartX;
-  const rawY = y - dragStartY;
+  const rawX = x - dragStartX, rawY = y - dragStartY;
   const sticky = applySticky(rawX, rawY);
   activeDragBox.dragCurrentX = sticky.x;
   activeDragBox.dragCurrentY = sticky.y;
@@ -737,16 +698,14 @@ gestureBar.addEventListener('touchstart', (e) => {
   e.preventDefault(); e.stopPropagation();
   startDrag(openBox, e.touches[0].clientX, e.touches[0].clientY);
 }, { passive: false });
-
 gestureBar.addEventListener('touchmove', (e) => {
   if (!activeDragBox || activeDragBox.state !== 'dragging') return;
   e.preventDefault(); e.stopPropagation();
   moveDrag(e.touches[0].clientX, e.touches[0].clientY);
 }, { passive: false });
-
 gestureBar.addEventListener('touchend', endDrag);
 
-// ★ Mouse — คลิก gesture bar ปิดแอปเลย, ลากก็ได้
+// Mouse — คลิก gesture bar ปิดแอปเลย
 let mouseDownPos = null;
 gestureBar.addEventListener('mousedown', (e) => {
   const openBox = findOpenBox();
@@ -755,23 +714,18 @@ gestureBar.addEventListener('mousedown', (e) => {
   mouseDownPos = { x: e.clientX, y: e.clientY };
   startDrag(openBox, e.clientX, e.clientY);
 });
-
 document.addEventListener('mousemove', (e) => { moveDrag(e.clientX, e.clientY); });
-
 document.addEventListener('mouseup', (e) => {
   if (!activeDragBox) { mouseDownPos = null; return; }
   if (mouseDownPos) {
-    const dx = e.clientX - mouseDownPos.x;
-    const dy = e.clientY - mouseDownPos.y;
-    if (Math.sqrt(dx*dx + dy*dy) < 10) {
-      velocityY = -1; // บังคับปิด
-    }
+    const dx = e.clientX - mouseDownPos.x, dy = e.clientY - mouseDownPos.y;
+    if (Math.sqrt(dx*dx + dy*dy) < 10) velocityY = -1;
   }
   mouseDownPos = null;
   endDrag();
 });
 
-// ★ คลิก bg-overlay ปิดแอป
+// คลิก bg-overlay ปิดแอป
 bgOverlay.addEventListener('click', () => {
   const openBox = findOpenBox();
   if (openBox) closeBox(openBox);
@@ -780,18 +734,15 @@ bgOverlay.addEventListener('click', () => {
 // ═══════════════════════════════════════════════════════════
 //  ICON CLICK
 // ═══════════════════════════════════════════════════════════
-
 document.querySelectorAll('.app-icon').forEach(icon => {
   icon.addEventListener('click', () => {
-    const url = APP_URLS[icon.id] || icon.dataset.url;
-    openApp(icon, url);
+    openApp(icon, APP_URLS[icon.id] || icon.dataset.url);
   });
 });
 
 // ═══════════════════════════════════════════════════════════
 //  BLOCK
 // ═══════════════════════════════════════════════════════════
-
 document.addEventListener('contextmenu', e => e.preventDefault());
 document.addEventListener('dblclick', e => e.preventDefault());
 document.addEventListener('dragstart', e => e.preventDefault());
@@ -800,40 +751,27 @@ document.addEventListener('selectstart', e => e.preventDefault());
 // ═══════════════════════════════════════════════════════════
 //  KIOSK MODE
 // ═══════════════════════════════════════════════════════════
-
 let escPressed = false;
-
 async function enterKiosk() {
   if (escPressed) return;
   if (!document.fullscreenElement) {
     try { await document.documentElement.requestFullscreen(); } catch(e) {}
   }
 }
-
 document.addEventListener('click', enterKiosk, { once: true });
 document.addEventListener('touchend', enterKiosk, { once: true });
-
 document.addEventListener('fullscreenchange', () => {
   if (!document.fullscreenElement && !escPressed) setTimeout(enterKiosk, 200);
   if (document.fullscreenElement) escPressed = false;
 });
-
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    escPressed = true;
-    if (document.fullscreenElement) document.exitFullscreen();
-    return;
-  }
+  if (e.key === 'Escape') { escPressed = true; if (document.fullscreenElement) document.exitFullscreen(); return; }
   e.preventDefault();
 });
-
 history.pushState(null,'',location.href);
 history.pushState(null,'',location.href);
 history.pushState(null,'',location.href);
-window.addEventListener('popstate', () => {
-  history.pushState(null,'',location.href);
-  enterKiosk();
-});
+window.addEventListener('popstate', () => { history.pushState(null,'',location.href); enterKiosk(); });
 </script>
 </body>
 </html>
