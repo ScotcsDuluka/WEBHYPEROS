@@ -22,6 +22,12 @@ img.wallpaper {
   width: 100%; height: 100%;
   object-fit: cover; object-position: center;
   user-select: none; -webkit-user-drag: none; pointer-events: none;
+  transition: filter 0.5s cubic-bezier(0.16,1,0.3,1), transform 0.5s cubic-bezier(0.16,1,0.3,1);
+  will-change: filter, transform;
+}
+img.wallpaper.blurred {
+  filter: blur(28px) brightness(0.65);
+  transform: scale(1.18);
 }
 .bg-overlay {
   position: fixed; top: 0; left: 0;
@@ -240,6 +246,7 @@ let appState = 'closed';
 const gestureBar = document.getElementById('gestureBar');
 const dockWrap   = document.getElementById('dockWrap');
 const bgOverlay  = document.getElementById('bgOverlay');
+const wallpaper  = document.querySelector('img.wallpaper');
 
 let dragStartX = 0, dragStartY = 0;
 let lastMoveX = 0, lastMoveY = 0, lastMoveTime = 0;
@@ -254,7 +261,7 @@ const SNAP_MS = 370;
 const VELOCITY_CLOSE = 0.35;
 const SPEED = 4.5;
 const FLING = 1.8;
-const DRAG_SHRINK = 0.50;
+const DRAG_SHRINK = 0.30;
 
 // ═══════════════════════════════════════════════════════════
 //  HELPERS
@@ -318,6 +325,8 @@ function updateGlobalUI() {
   dockWrap.classList.toggle('hidden', hideDock);
   if (hideDock) { bgOverlay.classList.add('active'); bgOverlay.style.opacity = ''; }
   else { bgOverlay.classList.remove('active'); bgOverlay.style.opacity = ''; }
+  const shouldBlur = hasOpen || boxPool.some(b => b.state === 'opening');
+  wallpaper.classList.toggle('blurred', shouldBlur);
   if (hasOpen) appState = 'open';
   else if (hasBusy) appState = 'transitioning';
   else appState = 'closed';
@@ -567,7 +576,6 @@ function finishBoxClose(box) {
   box.iconLayer.classList.remove('visible');
   box.iconLayer.innerHTML = '';
   box.pill.style.opacity = '1';
-  box.pill.style.transform = 'translateX(-50%)';
   if (box.iconId) showDockIcon(box.iconId);
   box.frame.src = '';
   box.state = 'idle';
@@ -596,7 +604,6 @@ function forceResetBox(box) {
   box.iconLayer.classList.remove('visible');
   box.iconLayer.innerHTML = '';
   box.pill.style.opacity = '1';
-  box.pill.style.transform = 'translateX(-50%)';
   if (box.iconId) showDockIcon(box.iconId);
   box.frame.src = '';
   box.state = 'idle';
@@ -650,10 +657,7 @@ function moveDrag(x, y) {
   activeDragBox.el.style.transform = 'translate(' + sticky.x + 'px,' + sticky.y + 'px) scale(' + scale + ')';
   activeDragBox.web.style.borderRadius = calcRadius(progress, scale);
   bgOverlay.style.opacity = Math.max(0, 1 - progress * 2);
-  if (activeDragBox.pill) {
-    activeDragBox.pill.style.opacity = Math.max(0, 1 - progress * 1.2);
-    activeDragBox.pill.style.transform = 'translateX(-50%) scale(' + (1 / scale) + ')';
-  }
+  if (activeDragBox.pill) activeDragBox.pill.style.opacity = Math.max(0, 1 - progress * 3);
 }
 
 function endDrag() {
@@ -672,7 +676,7 @@ function endDrag() {
     dockWrap.classList.add('hidden');
     activeDragBox.dragCurrentX = 0;
     activeDragBox.dragCurrentY = 0;
-    if (activeDragBox.pill) { activeDragBox.pill.style.opacity = '1'; activeDragBox.pill.style.transform = 'translateX(-50%)'; }
+    if (activeDragBox.pill) activeDragBox.pill.style.opacity = '1';
     updateGlobalUI();
   }
   activeDragBox = null;
