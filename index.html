@@ -106,7 +106,7 @@ img.wallpaper.blurred {
 .icon-layer::after {
   content: ''; position: absolute;
   top: 0; left: 0; right: 0; height: 50%;
-  background: linear-gradient(180deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.03) 100%);
+  background: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.02) 100%);
   pointer-events: none; z-index: 2;
   border-radius: inherit;
 }
@@ -327,12 +327,20 @@ function openApp(iconEl, url) {
     box.iconLayer.style.borderRadius = cssR;
     box.el.style.transform = 'translate('+curTx+'px,'+curTy+'px) scale('+curSx+','+curSy+')';
 
-    // ★ ซ่อน icon-layer เมื่อกล่องโตพอ (et > 0.35) → แสดง web
-    if (!iconHidden && et > 0.35) {
+    // ★ fade icon-layer ออกเมื่อออกจาก Dock 6%
+    if (!iconHidden && et > 0.06) {
       iconHidden = true;
       box.iconLayer.classList.remove('visible');
       box.web.style.background = '#fff';
       box.pill.style.opacity = '1';
+    }
+    // ★ fade web content opacity ตั้งแต่ต้นจนถึง 6%
+    if (et < 0.06) {
+      box.web.style.opacity = '0';
+    } else if (et < 0.2) {
+      box.web.style.opacity = String((et - 0.06) / 0.14);
+    } else {
+      box.web.style.opacity = '1';
     }
 
     if (t < 1) {
@@ -430,8 +438,15 @@ function closeBox(box) {
     const radiusProgress = Math.pow(sizeProgress, 0.65);
     const cssR = calcRadiusXY(radiusProgress, clampSx, clampSy);
 
-    // ★ โชว์ icon-layer เมื่อกล่องเล็กลง sizeProgress > 0.7
-    if (!iconShown && sizeProgress > 0.7) {
+    // ★ fade web ออกเมื่อใกล้ถึง Dock 96%
+    if (p > 0.96) {
+      box.web.style.opacity = String(Math.max(0, 1 - (p - 0.96) / 0.04));
+    } else {
+      box.web.style.opacity = '1';
+    }
+
+    // ★ fade in icon-layer เมื่อใกล้ถึง Dock 96%
+    if (!iconShown && p > 0.96) {
       iconShown = true;
       box.iconLayer.classList.add('visible');
       box.web.style.background = 'transparent';
