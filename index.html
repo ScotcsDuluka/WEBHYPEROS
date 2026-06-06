@@ -92,6 +92,7 @@ img.wallpaper {
   transition: transform 0.15s ease, opacity 0.2s ease;
   position: relative;
   overflow: hidden;
+  flex-shrink: 0;
 }
 .app-icon:active { transform: scale(0.88); }
 .app-icon::after {
@@ -104,25 +105,6 @@ img.wallpaper {
   pointer-events: none;
 }
 .app-icon svg { position: relative; z-index: 1; }
-
-/* ─── App Icon เมื่ออยู่ใน box_anim ─── */
-.box-anim > .app-icon {
-  position: absolute;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  border-radius: 42px;
-  z-index: 2;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-.box-anim > .app-icon.icon-visible {
-  opacity: 1;
-}
-.box-anim > .app-icon svg {
-  width: 52%; height: 52%;
-  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));
-}
 
 /* ─── BOX_anim ─── */
 .box-anim {
@@ -208,7 +190,7 @@ img.wallpaper {
   <div class="box-gesture-pill" id="boxPill1"></div>
 </div>
 
-<!-- Gesture Bar (touch area only) -->
+<!-- Gesture Bar -->
 <div class="gesture-bar" id="gestureBar"></div>
 
 <!-- Dock -->
@@ -270,8 +252,9 @@ const boxPool = [
     frame: document.getElementById('appFrame0'),
     pill:  document.getElementById('boxPill0'),
     state: 'idle',    // idle | opening | open | dragging | closing
-    icon: null,
-    target: null,     // ★ จำตำแหน่ง ICON ไว้ตอนเปิด
+    iconId: null,     // ★ จำ ID ของ icon ไม่ย้าย DOM
+    target: null,     // ★ จำตำแหน่ง icon ไว้ตอนเปิด
+    iconBg: null,     // ★ จำ background gradient ของ icon
     rafId: null,
     openTimer: null,
     dragCurrentX: 0,
@@ -284,8 +267,9 @@ const boxPool = [
     frame: document.getElementById('appFrame1'),
     pill:  document.getElementById('boxPill1'),
     state: 'idle',
-    icon: null,
+    iconId: null,
     target: null,
+    iconBg: null,
     rafId: null,
     openTimer: null,
     dragCurrentX: 0,
@@ -305,18 +289,15 @@ let lastMoveX = 0, lastMoveY = 0, lastMoveTime = 0;
 let velocityX = 0, velocityY = 0;
 let activeDragBox = null;
 
-// ─── Dock placeholder ───
-const dockPlaceholders = new Map();
-
 // ─── Tuning ───
 const R_ICON = 42;
 const CLOSE_UP_PX = Math.round(window.innerHeight * 0.08);
-const OPEN_MS = 550;
-const SNAP_MS = 550;
+const OPEN_MS = 500;
+const SNAP_MS = 500;
 const VELOCITY_CLOSE = 0.35;
-const SPEED = 3.5;
+const SPEED = 4.5;
 const FLING = 1.8;
-const DRAG_SHRINK = 0.30;
+const DRAG_SHRINK = 0.70;
 
 // ═══════════════════════════════════════════════════════════
 //  HELPERS
@@ -332,22 +313,10 @@ function getIconTransform(iconRect) {
   return { tx, ty, sx, sy };
 }
 
-// ★ border-radius แบบค่าเดียว หารด้วย scale
+// ★ border-radius: morph จาก R_ICON (ตอนเล็กเหมือน icon) → 0 (เต็มจอ)
 function calcRadius(progress, scale) {
   const visualR = progress * R_ICON;
   return visualR / Math.max(0.01, scale) + 'px';
-}
-
-// ★ ปรับ border-radius ของ icon ให้ชดเชย non-uniform scale(sx,sy)
-// ใช้ Rh/Rv syntax: visual radius = R_ICON ทุกทิศ
-function fixIconRadius(iconEl, sx, sy) {
-  if (!iconEl) return;
-  iconEl.style.borderRadius = (R_ICON / Math.max(0.01, sx)) + 'px / ' + (R_ICON / Math.max(0.01, sy)) + 'px';
-}
-
-function resetIconRadius(iconEl) {
-  if (!iconEl) return;
-  iconEl.style.borderRadius = '';
 }
 
 function shouldClose() {
@@ -383,7 +352,6 @@ function applySticky(rawX, rawY) {
   return { x: sx, y: sy };
 }
 
-// ─── ease-out smooth (近似 cubic-bezier(0.16, 1, 0.3, 1)) ───
 function easeOutSmooth(t) {
   return 1 - Math.pow(1 - t, 2.8);
 }
@@ -393,9 +361,6 @@ function findOpenBox() {
 }
 function findIdleBox() {
   return boxPool.find(b => b.state === 'idle') || null;
-}
-function findClosingBox() {
-  return boxPool.find(b => b.state === 'closing') || null;
 }
 
 function updateGlobalUI() {
@@ -416,65 +381,36 @@ function updateGlobalUI() {
   else appState = 'closed';
 }
 
-// ─── ย้ายไอคอน dock ↔ box ───
-function moveIconToBox(iconEl, box) {
-  const iconId = iconEl.id;
-  let ph = dockPlaceholders.get(iconId);
-  if (!ph) {
-    ph = document.createElement('div');
-    ph.style.cssText = 'width:52px;height:52px;flex-shrink:0;border-radius:15px;cursor:pointer;';
-    dockPlaceholders.set(iconId, ph);
-  }
-  ph.onclick = () => { openApp(iconEl, APP_URLS[iconId]); };
-  const dock = document.querySelector('.dock');
-  if (iconEl.parentElement === dock) {
-    dock.insertBefore(ph, iconEl);
-  } else if (!ph.parentElement) {
-    dock.appendChild(ph);
-  }
-  box.el.appendChild(iconEl);
+// ★ ซ่อน/แสดง icon ใน dock (ไม่ย้าย DOM — แก้บัค ICON หด/โค้งผิด)
+function hideDockIcon(iconId) {
+  const icon = document.getElementById(iconId);
+  if (icon) { icon.style.opacity = '0'; icon.style.pointerEvents = 'none'; }
 }
-
-function moveIconToDock(iconEl) {
-  const iconId = iconEl.id;
-  const ph = dockPlaceholders.get(iconId);
-  const dock = document.querySelector('.dock');
-  if (ph && ph.parentElement) {
-    ph.parentElement.insertBefore(iconEl, ph);
-    ph.remove();
-  } else if (dock) {
-    dock.appendChild(iconEl);
-  }
-  iconEl.classList.remove('icon-visible');
-  resetIconRadius(iconEl); // ★ คืน border-radius เป็น CSS default
+function showDockIcon(iconId) {
+  const icon = document.getElementById(iconId);
+  if (icon) { icon.style.opacity = ''; icon.style.pointerEvents = ''; }
 }
 
 // ═══════════════════════════════════════════════════════════
-//  OPEN APP — ใช้ rAF animation (ไม่ใช้ CSS transition)
+//  OPEN APP — icon อยู่ dock เดิม, box-web morph แทน
 // ═══════════════════════════════════════════════════════════
 
 function openApp(iconEl, url) {
+  const iconId = iconEl.id;
+
+  // ถ้ากด icon ตัวเดียวกับที่เปิดอยู่ → ปิด
   const currentOpen = findOpenBox();
-  if (currentOpen && currentOpen.icon === iconEl) {
+  if (currentOpen && currentOpen.iconId === iconId) {
     closeBox(currentOpen);
     return;
   }
 
-  // ถ้าไอคอนอยู่ใน box อื่น → force-reset
-  const iconInBox = boxPool.find(b => b.icon === iconEl && b.state !== 'idle');
-  if (iconInBox) forceResetBox(iconInBox);
+  // ★ force-reset ทุก box ที่ไม่ idle ทันที (แก้บัคสลับติดขัด)
+  boxPool.forEach(b => {
+    if (b.state !== 'idle') forceResetBox(b);
+  });
 
-  // ถ้ามี box ที่เปิด/กำลังเปิด → ปิดมัน
-  const busyBox = boxPool.find(b => b.state === 'open' || b.state === 'opening');
-  if (busyBox) closeBox(busyBox);
-
-  // หา idle box
   let box = findIdleBox();
-  if (!box) {
-    const closingBox = findClosingBox();
-    if (closingBox) forceResetBox(closingBox);
-    box = findIdleBox();
-  }
   if (!box) return;
 
   // วัดตำแหน่ง icon
@@ -482,11 +418,15 @@ function openApp(iconEl, url) {
   const iconRect = iconEl.getBoundingClientRect();
   const iconTf = getIconTransform(iconRect);
 
-  box.target = iconTf;
-  box.icon = iconEl;
-  moveIconToBox(iconEl, box);
+  // ★ จำ background ของ icon เพื่อใช้ตอน morph
+  const iconBgStyle = iconEl.style.background || getComputedStyle(iconEl).background;
 
-  // ★ Setup initial state
+  box.target = iconTf;
+  box.iconId = iconId;
+  box.iconBg = iconBgStyle;
+  hideDockIcon(iconId);
+
+  // ★ Setup — box-web เริ่มด้วย background + border-radius เหมือน icon
   box.el.style.display = 'block';
   box.el.style.transition = 'none';
   box.web.style.transition = 'none';
@@ -495,12 +435,10 @@ function openApp(iconEl, url) {
   box.el.classList.remove('z-closing');
   box.el.classList.add('z-open');
 
-  iconEl.classList.add('icon-visible');
-  fixIconRadius(iconEl, iconTf.sx, iconTf.sy); // ★ ชดเชย non-uniform scale
   box.web.style.borderRadius = calcRadius(1, Math.min(iconTf.sx, iconTf.sy));
-  box.web.style.background = 'transparent';
+  box.web.style.background = iconBgStyle;
   box.web.style.opacity = '1';
-  box.pill.style.opacity = '1';
+  box.pill.style.opacity = '0';
 
   box.frame.src = '';
   void box.el.offsetHeight;
@@ -510,10 +448,9 @@ function openApp(iconEl, url) {
   const startTime = performance.now();
   const fromTx = iconTf.tx, fromTy = iconTf.ty;
   const fromSx = iconTf.sx, fromSy = iconTf.sy;
-  let iconFaded = false;
+  let bgSwitched = false;
 
   function tickOpen(now) {
-    // ถ้าถูกขัดจังหวะ (closeBox/forceReset) → หยุด
     if (box.state !== 'opening') return;
 
     const elapsed = now - startTime;
@@ -526,30 +463,24 @@ function openApp(iconEl, url) {
     const curTy = fromTy * (1 - et);
 
     const minS = Math.min(curSx, curSy);
-
-    // ★ ปรับ icon border-radius ทุกเฟรม
-    fixIconRadius(iconEl, curSx, curSy);
-
-    // border-radius: progress จาก 1 (icon) → 0 (full screen)
     const radiusProgress = 1 - et;
     box.web.style.borderRadius = calcRadius(radiusProgress, minS);
 
     box.el.style.transform = 'translate(' + curTx + 'px,' + curTy + 'px) scale(' + curSx + ',' + curSy + ')';
 
-    // icon fade out ที่ ~25%
-    if (!iconFaded && t > 0.25) {
-      iconFaded = true;
-      iconEl.classList.remove('icon-visible');
+    // ★ สลับ background: icon gradient → white ที่ ~20%
+    if (!bgSwitched && t > 0.20) {
+      bgSwitched = true;
       box.web.style.background = '#fff';
+      box.pill.style.opacity = '1';
     }
 
     if (t < 1) {
       box.rafId = requestAnimationFrame(tickOpen);
     } else {
-      // Animation complete
       box.el.style.transform = 'none';
       box.web.style.borderRadius = '0px';
-      resetIconRadius(iconEl);
+      box.web.style.background = '#fff';
       box.state = 'open';
       box.rafId = null;
       updateGlobalUI();
@@ -558,7 +489,6 @@ function openApp(iconEl, url) {
 
   box.rafId = requestAnimationFrame(tickOpen);
 
-  // Load iframe
   if (box.openTimer) clearTimeout(box.openTimer);
   box.openTimer = setTimeout(() => { box.frame.src = url; box.openTimer = null; }, 100);
 
@@ -592,7 +522,6 @@ function closeBox(box) {
   box.web.style.transition = 'none';
   box.el.style.transform = 'translate(' + startTx + 'px,' + startTy + 'px) scale(' + startSx + ',' + startSy + ')';
 
-  // Target = จำไว้ตอนเปิด
   const target = box.target;
   if (!target) { finishBoxClose(box); return; }
 
@@ -618,7 +547,7 @@ function closeBox(box) {
   const maxMs = 1500;
   let lastTs = null;
   let settled = false;
-  let iconShown = false;
+  let iconBgRestored = false;
 
   function tick(ts) {
     if (!lastTs) lastTs = ts;
@@ -649,17 +578,12 @@ function closeBox(box) {
     const sizeProgress = Math.max(0, Math.min(1, (1 - minS) / (1 - Math.min(tSx, tSy))));
     const cssR = calcRadius(sizeProgress, minS);
 
-    // ★ แสดง icon + ปรับ border-radius ชดเชย non-uniform scale
-    if (!iconShown && minS < 0.3 && box.icon) {
-      iconShown = true;
-      box.icon.classList.add('icon-visible');
-      box.web.style.background = 'transparent';
-    }
-    if (iconShown && box.icon) {
-      fixIconRadius(box.icon, clampSx, clampSy);
+    // ★ สลับ background กลับเป็น icon gradient ตอนเล็กลง
+    if (!iconBgRestored && sizeProgress > 0.6 && box.iconBg) {
+      iconBgRestored = true;
+      box.web.style.background = box.iconBg;
     }
 
-    // fade pill
     if (box.pill) box.pill.style.opacity = Math.max(0, 1 - sizeProgress * 2.5);
 
     box.el.style.transform = 'translate(' + curTx + 'px,' + curTy + 'px) scale(' + clampSx + ',' + clampSy + ')';
@@ -676,7 +600,6 @@ function closeBox(box) {
       box.web.style.transition = 'border-radius 250ms cubic-bezier(0.25, 0, 0.15, 1), opacity 250ms ease';
       box.web.style.borderRadius = calcRadius(1, Math.min(tSx, tSy));
       box.web.style.opacity = '0';
-      if (box.icon) fixIconRadius(box.icon, tSx, tSy);
       setTimeout(() => finishBoxClose(box), 260);
       return;
     }
@@ -701,11 +624,12 @@ function finishBoxClose(box) {
   box.web.style.background = '#fff';
   box.web.style.transition = 'none';
   box.pill.style.opacity = '1';
-  if (box.icon) moveIconToDock(box.icon); // ★ คืน border-radius อัตโนมัติ
+  if (box.iconId) showDockIcon(box.iconId);
   box.frame.src = '';
   box.state = 'idle';
-  box.icon = null;
+  box.iconId = null;
   box.target = null;
+  box.iconBg = null;
   box.dragCurrentX = 0;
   box.dragCurrentY = 0;
   updateGlobalUI();
@@ -725,11 +649,12 @@ function forceResetBox(box) {
   box.web.style.background = '#fff';
   box.web.style.transition = 'none';
   box.pill.style.opacity = '1';
-  if (box.icon) moveIconToDock(box.icon);
+  if (box.iconId) showDockIcon(box.iconId);
   box.frame.src = '';
   box.state = 'idle';
-  box.icon = null;
+  box.iconId = null;
   box.target = null;
+  box.iconBg = null;
   box.dragCurrentX = 0;
   box.dragCurrentY = 0;
   box.rafId = null;
@@ -793,6 +718,7 @@ function endDrag() {
     activeDragBox.el.style.transform = 'none';
     activeDragBox.web.style.transition = 'border-radius ' + SNAP_MS + 'ms cubic-bezier(0.16, 1, 0.3, 1)';
     activeDragBox.web.style.borderRadius = '0px';
+    activeDragBox.web.style.background = '#fff';
     bgOverlay.style.opacity = '';
     bgOverlay.classList.add('active');
     dockWrap.classList.add('hidden');
@@ -834,14 +760,11 @@ document.addEventListener('mousemove', (e) => { moveDrag(e.clientX, e.clientY); 
 
 document.addEventListener('mouseup', (e) => {
   if (!activeDragBox) { mouseDownPos = null; return; }
-  // ★ ถ้ากด+ปล่อยที่เดียวกัน (คลิก) → ปิดแอปเลย
   if (mouseDownPos) {
     const dx = e.clientX - mouseDownPos.x;
     const dy = e.clientY - mouseDownPos.y;
-    const moved = Math.sqrt(dx*dx + dy*dy);
-    if (moved < 10) {
+    if (Math.sqrt(dx*dx + dy*dy) < 10) {
       velocityY = -1; // บังคับปิด
-      mouseDownPos = null;
     }
   }
   mouseDownPos = null;
@@ -875,7 +798,7 @@ document.addEventListener('dragstart', e => e.preventDefault());
 document.addEventListener('selectstart', e => e.preventDefault());
 
 // ═══════════════════════════════════════════════════════════
-//  KIOSK MODE (ไม่มี pointer lock — ให้เมาส์ใช้ได้)
+//  KIOSK MODE
 // ═══════════════════════════════════════════════════════════
 
 let escPressed = false;
