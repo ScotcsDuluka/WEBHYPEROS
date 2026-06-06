@@ -278,7 +278,7 @@ function openApp(iconEl, url) {
   if (activeBox && activeBox.iconId === iconId) { closeBox(activeBox); return; }
   // ★ ปิด box แบบต่อเนื่อง ไม่ force reset
   boxPool.forEach(b => {
-    if (b.state === 'idle') return;
+    if (b.state === 'idle' || b.state === 'closing') return; // ★ ปล่อย closing ทำงานต่อ
     if (b.state === 'opening' || b.state === 'open') { closeBox(b); }
     else { forceResetBox(b); }
   });
@@ -450,15 +450,12 @@ function closeBox(box) {
     const radiusProgress = Math.pow(sizeProgress, 0.65);
     const cssR = calcRadiusXY(radiusProgress, clampSx, clampSy);
 
-    // ★ fade web ออกเมื่อใกล้ถึง Dock 96%
-    if (p > 0.96) {
-      box.web.style.opacity = String(Math.max(0, 1 - (p - 0.96) / 0.04));
-    } else {
-      box.web.style.opacity = '1';
-    }
+    // ★ fade web ออกไวๆ ตั้งแต่เริ่ม close
+    const webOpacity = Math.max(0, 1 - sizeProgress * 2.5);
+    box.web.style.opacity = String(webOpacity);
 
-    // ★ fade in icon-layer เมื่อใกล้ถึง Dock 96%
-    if (!iconShown && p > 0.96) {
+    // ★ fade in icon-layer เร็วขึ้น sizeProgress > 0.25
+    if (!iconShown && sizeProgress > 0.25) {
       iconShown = true;
       box.iconLayer.classList.add('visible');
       box.web.style.background = 'transparent';
