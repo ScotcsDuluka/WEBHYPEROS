@@ -75,6 +75,10 @@ img.wallpaper.blurred {
   cursor: pointer; position: relative; overflow: hidden; flex-shrink: 0;
   transition: transform 0.15s ease, opacity 0.15s ease;
 }
+.app-icon img {
+  width: 52px; height: 52px; border-radius: 15px;
+  display: block; pointer-events: none;
+}
 .app-icon::after {
   content: ''; position: absolute;
   top: 0; left: 0; right: 0; height: 50%;
@@ -104,17 +108,11 @@ img.wallpaper.blurred {
   display: flex; align-items: center; justify-content: center;
 }
 .icon-layer.visible { opacity: 1; }
-.icon-layer svg {
-  width: 52%; height: 52%;
-  position: relative; z-index: 1;
-  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));
+.icon-layer img {
+  width: 100%; height: 100%;
+  object-fit: cover; pointer-events: none;
 }
-.icon-layer::after {
-  content: ''; position: absolute;
-  top: 0; left: 0; right: 0; height: 50%;
-  background: linear-gradient(180deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.04) 100%);
-  pointer-events: none; z-index: 2;
-}
+
 
 /* ─── Box WEB ─── */
 .box-web {
@@ -184,17 +182,17 @@ img.wallpaper.blurred {
 
 <div class="dock-wrap" id="dockWrap">
   <div class="dock">
-    <div class="app-icon" style="background:linear-gradient(145deg,#CFD8DC,#546E7A)" id="btnSettings">
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="white" fill-opacity=".88"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.49.49 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 00-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1112 8.4a3.6 3.6 0 010 7.2z"/></svg>
+    <div class="app-icon" style="background:#fff" id="btnSettings">
+      <img src="/miui_mod_icons/icons/com.android.settings.png" width="52" height="52" style="border-radius:15px;display:block">
     </div>
-    <div class="app-icon" style="background:linear-gradient(145deg,#EF9A9A,#C62828)" id="btnYouTube">
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="white" fill-opacity=".9"><path d="M10 15l5.19-3L10 9v6m11.56-7.83c.13.47.22 1.1.28 1.9.07.8.1 1.49.1 2.09L22 12c0 2.19-.16 3.8-.44 4.83-.25.9-.83 1.48-1.73 1.73-.47.13-1.33.22-2.65.28-1.3.07-2.49.1-3.59.1L12 19c-4.19 0-6.8-.16-7.83-.44-.9-.25-1.48-.83-1.73-1.73-.13-.47-.22-1.1-.28-1.9-.07-.8-.1-1.49-.1-2.09L2 12c0-2.19.16-3.8.44-4.83.25-.9.83-1.48 1.73-1.73.47-.13 1.33-.22 2.65-.28 1.3-.07 2.49-.1 3.59-.1L12 5c4.19 0 6.8.16 7.83.44.9.25 1.48.83 1.73 1.73z"/></svg>
+    <div class="app-icon" style="background:#fff" id="btnYouTube">
+      <img src="/miui_mod_icons/icons/com.miui.video.png" width="52" height="52" style="border-radius:15px;display:block">
     </div>
-    <div class="app-icon" style="background:linear-gradient(145deg,#90A4AE,#37474F)" id="btnCamera">
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="white" fill-opacity=".88"><path d="M12 15.2a3.2 3.2 0 100-6.4 3.2 3.2 0 000 6.4z"/><path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
+    <div class="app-icon" style="background:#fff" id="btnCamera">
+      <img src="/miui_mod_icons/icons/com.android.camera.png" width="52" height="52" style="border-radius:15px;display:block">
     </div>
-    <div class="app-icon" style="background:linear-gradient(145deg,#FFCC80,#E65100)" id="btnCalc">
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="white" fill-opacity=".88"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7.5 4h5v2h-5V7zm0 4h5v2h-5v-2zM7 7h2v2H7V7zm0 4h2v2H7v-2zm0 4h2v2H7v-2zm4.5 0h5v2h-5v-2z"/></svg>
+    <div class="app-icon" style="background:#fff" id="btnCalc">
+      <img src="/miui_mod_icons/icons/com.miui.calculator.png" width="52" height="52" style="border-radius:15px;display:block">
     </div>
   </div>
 </div>
@@ -361,7 +359,18 @@ function showDockIcon(id) {
 
 function setupIconLayer(box, iconEl) {
   const layer = box.iconLayer;
-  layer.innerHTML = iconEl.innerHTML;
+  const img = iconEl.querySelector('img');
+  if (img) {
+    layer.innerHTML = '';
+    const clone = img.cloneNode(true);
+    clone.style.width = '100%';
+    clone.style.height = '100%';
+    clone.style.objectFit = 'cover';
+    clone.style.borderRadius = '0';
+    layer.appendChild(clone);
+  } else {
+    layer.innerHTML = iconEl.innerHTML;
+  }
   layer.style.background = iconEl.style.background || getComputedStyle(iconEl).background;
 }
 
@@ -505,6 +514,9 @@ function closeBox(box) {
   box.el.classList.add('passthrough');
   box.el.classList.remove('z-open');
   box.el.classList.add('z-closing');
+
+  // ★ โชว์ dock icon ทันที ไม่รอ animation จบ → กดเปิดใหม่ได้เลย
+  if (box.iconId) showDockIcon(box.iconId);
 
   box.iconLayer.innerHTML = box.iconSvg;
   box.iconLayer.style.background = box.iconBg;
