@@ -251,6 +251,7 @@ body.dark-mode .box-gesture-pill {
 .drawer-item img {
   width: 56px; height: 56px; border-radius: 15px;
   pointer-events: none;
+  clip-path: var(--sq, none);
 }
 .drawer-item span {
   font-size: 12px; color: #fff; text-align: center;
@@ -800,14 +801,25 @@ function createExtendedIcon(imgEl) {
     const sd = tx.getImageData(0, 0, ICON_SZ, ICON_SZ).data;
     function getP(x,y) { const i=(y*ICON_SZ+x)*4; return [sd[i],sd[i+1],sd[i+2],sd[i+3]]; }
 
-    // สีเฉลี่ยขอบ — สำหรับ background-color fallback
+    // ★ สีเฉลี่ยขอบ — เฉพาะ pixel ทึบ (alpha > 128) เท่านั้น
+    // ไอคอนจาก miui_icons มีพื้นที่โปร่งใสรอบ squircle ต้องข้ามไม่งั้นสีออกมาดำๆ
     let ar=0,ag=0,ab=0,cnt=0;
     for(let x=0;x<ICON_SZ;x++) for(let y=0;y<ICON_SZ;y++){
-      if(x===0||x===ICON_SZ-1||y===0||y===ICON_SZ-1){
-        const i=(y*ICON_SZ+x)*4; ar+=sd[i]; ag+=sd[i+1]; ab+=sd[i+2]; cnt++;
-      }
+      const i=(y*ICON_SZ+x)*4;
+      if(sd[i+3]>128){ ar+=sd[i]; ag+=sd[i+1]; ab+=sd[i+2]; cnt++; }
     }
-    const avgColor = 'rgb('+Math.round(ar/cnt)+','+Math.round(ag/cnt)+','+Math.round(ab/cnt)+')';
+    // fallback: ถ้าไม่มี pixel ทึบเลย ใช้สีเทาอ่อน
+    let avgR, avgG, avgB;
+    if(cnt>0){ avgR=Math.round(ar/cnt); avgG=Math.round(ag/cnt); avgB=Math.round(ab/cnt); }
+    else { avgR=200; avgG=200; avgB=200; }
+    const avgColor = 'rgb('+avgR+','+avgG+','+avgB+')';
+
+    // ★ ฟังก์ชันเติมสีพื้นที่โปร่งใสด้วยสีเฉลี่ย — ทำให้ extended icon ทึบทั้งหมด
+    function fillTransparent(r,g,b,a) {
+      // ถ้า pixel โปร่งใสหรือกึ่งโปร่งใส → เติมสีเฉลี่ยแทน
+      if(a < 128) return [avgR, avgG, avgB, 255];
+      return [r, g, b, a];
+    }
 
     // สร้าง extended canvas
     const c = document.createElement('canvas');
@@ -817,29 +829,32 @@ function createExtendedIcon(imgEl) {
     const dp = dd.data;
     function setP(x,y,r,g,b,a) { const i=(y*ICON_FULL+x)*4; dp[i]=r; dp[i+1]=g; dp[i+2]=b; dp[i+3]=a; }
 
-    // ★ มุม 4 มุม — ก็อป pixel มุม แล้วยึดเต็ม
+    // ★ มุม 4 มุม — ก็อป pixel มุม แล้วยึดเต็ม (เติมสีพื้นแทนโปร่งใส)
     const E=ICON_EXT, S=ICON_SZ, F=ICON_FULL;
-    const tl=getP(0,0), tr=getP(S-1,0), bl=getP(0,S-1), br=getP(S-1,S-1);
+    const tl=fillTransparent(...getP(0,0)), tr=fillTransparent(...getP(S-1,0)), bl=fillTransparent(...getP(0,S-1)), br=fillTransparent(...getP(S-1,S-1));
     for(let y=0;y<E;y++) for(let x=0;x<E;x++) setP(x,y,...tl);
     for(let y=0;y<E;y++) for(let x=0;x<E;x++) setP(E+S+x,y,...tr);
     for(let y=0;y<E;y++) for(let x=0;x<E;x++) setP(x,E+S+y,...bl);
     for(let y=0;y<E;y++) for(let x=0;x<E;x++) setP(E+S+x,E+S+y,...br);
 
-    // ★ ขอบบน (แถว y=0) → ยืดขึ้นบน
-    for(let x=0;x<S;x++){ const [r,g,b,a]=getP(x,0); for(let y=0;y<E;y++) setP(E+x,y,r,g,b,a); }
+    // ★ ขอบบน (แถว y=0) → ยืดขึ้นบน (เติมสีพื้นแทนโปร่งใส)
+    for(let x=0;x<S;x++){ const [r,g,b,a]=fillTransparent(...getP(x,0)); for(let y=0;y<E;y++) setP(E+x,y,r,g,b,a); }
     // ★ ขอบล่าง (แถว y=S-1) → ยืดลงล่าง
-    for(let x=0;x<S;x++){ const [r,g,b,a]=getP(x,S-1); for(let y=0;y<E;y++) setP(E+x,E+S+y,r,g,b,a); }
+    for(let x=0;x<S;x++){ const [r,g,b,a]=fillTransparent(...getP(x,S-1)); for(let y=0;y<E;y++) setP(E+x,E+S+y,r,g,b,a); }
     // ★ ขอบซ้าย (คอลัมน์ x=0) → ยืดซ้าย
-    for(let y=0;y<S;y++){ const [r,g,b,a]=getP(0,y); for(let x=0;x<E;x++) setP(x,E+y,r,g,b,a); }
+    for(let y=0;y<S;y++){ const [r,g,b,a]=fillTransparent(...getP(0,y)); for(let x=0;x<E;x++) setP(x,E+y,r,g,b,a); }
     // ★ ขอบขวา (คอลัมน์ x=S-1) → ยืดขวา
-    for(let y=0;y<S;y++){ const [r,g,b,a]=getP(S-1,y); for(let x=0;x<E;x++) setP(E+S+x,E+y,r,g,b,a); }
+    for(let y=0;y<S;y++){ const [r,g,b,a]=fillTransparent(...getP(S-1,y)); for(let x=0;x<E;x++) setP(E+S+x,E+y,r,g,b,a); }
 
-    // ไอคอนตรงกลาง
-    for(let y=0;y<S;y++) for(let x=0;x<S;x++){ const [r,g,b,a]=getP(x,y); setP(E+x,E+y,r,g,b,a); }
+    // ไอคอนตรงกลาง (เติมสีพื้นแทนโปร่งใส)
+    for(let y=0;y<S;y++) for(let x=0;x<S;x++){
+      const [r,g,b,a]=fillTransparent(...getP(x,y));
+      setP(E+x,E+y,r,g,b,a);
+    }
 
     cx.putImageData(dd,0,0);
     return { dataURL: c.toDataURL(), avgColor: avgColor };
-  } catch(e) { return { dataURL: null, avgColor: 'rgb(80,80,80)' }; }
+  } catch(e) { return { dataURL: null, avgColor: 'rgb(200,200,200)' }; }
 }
 
 function setupIconLayer(box, iconEl) {
@@ -1171,7 +1186,7 @@ function closeBox(box) {
 
   // ★ เตรียม icon-layer (ซ่อนไว้ก่อน) — ก็อป pixel ขอบแต่ละด้าน ยืดในด้านนั้น
   box.iconLayer.innerHTML = '';
-  box.iconLayer.style.backgroundColor = box.borderColor || 'rgb(80,80,80)';
+  box.iconLayer.style.backgroundColor = box.borderColor || 'rgb(200,200,200)';
   if (box.extendedIconSrc) {
     box.iconLayer.style.backgroundImage = 'url(' + box.extendedIconSrc + ')';
     box.iconLayer.style.backgroundSize = ICON_FULL + 'px ' + ICON_FULL + 'px';
