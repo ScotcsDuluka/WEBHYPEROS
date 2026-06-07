@@ -247,6 +247,9 @@ const settings = loadSettings() || {
   darkMode: false,
 };
 
+// ★ Must declare appState BEFORE applyWallpaper() to avoid TDZ (Temporal Dead Zone) error
+let appState = 'closed';
+
 // ── Apply wallpaper (image or video, both from IndexedDB or URL) ──
 let currentImageObjectURL = null; // track blob URL for cleanup
 let currentVideoObjectURL = null;
@@ -326,6 +329,15 @@ async function applyWallpaper() {
     img.src = settings.wallpaper || DEFAULT_WALLPAPER;
     img.classList.toggle('blurred', hasOpen);
     vid.classList.toggle('blurred', false);
+  } catch(err) {
+    console.error('applyWallpaper failed:', err);
+    // Fallback: ensure at least the default URL wallpaper is shown
+    try {
+      const img = document.getElementById('wallpaperImg');
+      const vid = document.getElementById('wallpaperVideo');
+      if (img) { img.style.display = ''; img.src = DEFAULT_WALLPAPER; }
+      if (vid) { vid.style.display = 'none'; }
+    } catch(e2) {}
   } finally {
     wallpaperApplyPromise = null;
     resolve();
@@ -476,7 +488,7 @@ const boxPool = [
   { idx:1, el:document.getElementById('boxAnim1'), web:document.getElementById('boxWeb1'), frame:document.getElementById('appFrame1'), pill:document.getElementById('boxPill1'), iconLayer:document.getElementById('iconLayer1'), state:'idle', iconId:null, target:null, iconImgSrc:null, extendedIconSrc:null, borderColor:null, rafId:null, openTimer:null, dragCurrentX:0, dragCurrentY:0, dragBaseTx:0, dragBaseTy:0, dragBaseSx:1, dragBaseSy:1 }
 ];
 
-let appState = 'closed';
+// appState already declared above (before applyWallpaper)
 const gestureBar = document.getElementById('gestureBar');
 const dockWrap   = document.getElementById('dockWrap');
 const bgOverlay  = document.getElementById('bgOverlay');
